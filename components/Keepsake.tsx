@@ -155,6 +155,7 @@ export default function Keepsake() {
     if (!asset || !grid) return;
     soundEngine.setEnabled(soundEnabled);
     soundEngine.activate();
+    soundEngine.playShuffle();
     setError(null);
     dispatch({ type: "CUTTING" });
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -177,10 +178,12 @@ export default function Keepsake() {
 
   const pause = () => {
     const elapsedMs = state.timerEnabled ? performance.now() - clockAnchorRef.current : state.elapsedMs;
+    soundEngine.playPause();
     dispatch({ type: "PAUSE", reason: "manual", elapsedMs });
   };
 
   const showHint = () => {
+    soundEngine.playHint();
     dispatch({ type: "SHOW_HINT" });
     trackAnalytics({ event: "hint_used" });
     if (hintTimeoutRef.current) window.clearTimeout(hintTimeoutRef.current);
@@ -202,6 +205,7 @@ export default function Keepsake() {
     if (!grid || !state.pieces.length) return;
     soundEngine.setEnabled(soundEnabled);
     soundEngine.activate();
+    soundEngine.playShuffle();
     const pieces = createPieces(grid.rows, grid.cols, state.pieces.map((piece) => piece.edges), state.difficulty, seedRef.current ^ sessionVersion);
     completionRecordedRef.current = false;
     lastTimerPulseRef.current = -1;
@@ -216,6 +220,7 @@ export default function Keepsake() {
     soundEngine.setEnabled(enabled);
     if (enabled) {
       soundEngine.activate();
+      soundEngine.playResume();
       if (state.phase === "playing") soundEngine.startMusic();
     }
   };
@@ -291,7 +296,7 @@ export default function Keepsake() {
                 <DifficultyControl value={state.difficulty} onChange={(difficulty) => dispatch({ type: "SET_DIFFICULTY", difficulty })} />
                 <div className="setup-toggles">
                   <label className="timer-toggle"><span><strong>Race the clock</strong><small>Timer pauses when you do</small></span><input type="checkbox" checked={state.timerEnabled} onChange={(event) => dispatch({ type: "SET_TIMER", enabled: event.target.checked })} /><i /></label>
-                  <label className="timer-toggle"><span><strong>Gentle soundscape</strong><small>Music, snaps, misses & timer cues</small></span><input type="checkbox" checked={soundEnabled} onChange={(event) => toggleSound(event.target.checked)} /><i /></label>
+                  <label className="timer-toggle"><span><strong>Full soundscape</strong><small>100% output · use your Mac volume</small></span><input type="checkbox" checked={soundEnabled} onChange={(event) => toggleSound(event.target.checked)} /><i /></label>
                 </div>
                 {grid.count !== state.requestedCount && <p className="fit-note">Closest fit: <strong>{grid.count} pieces</strong> ({grid.cols} × {grid.rows})</p>}
                 {resolutionWarning && <p className="warning-note">{resolutionWarning}</p>}
@@ -324,7 +329,7 @@ export default function Keepsake() {
                 </button>
               )}
               {state.difficulty === "hard" && state.selectedPieceId !== null && (
-                <button className="button button-quiet" onClick={() => dispatch({ type: "ROTATE", id: state.selectedPieceId! })}>Rotate ↻</button>
+                <button className="button button-quiet" onClick={() => { soundEngine.playRotate(); dispatch({ type: "ROTATE", id: state.selectedPieceId! }); }}>Rotate ↻</button>
               )}
               {state.phase === "playing" && <button className="button button-quiet" onClick={pause}>Pause</button>}
               <button className="button button-quiet" onClick={resetToEmpty}>New photo</button>

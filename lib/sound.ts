@@ -9,6 +9,7 @@ const MUSIC_NOTES = [220, 261.63, 293.66, 329.63, 392, 329.63, 293.66, 261.63];
 class KeepsakeSoundEngine {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
+  private limiter: DynamicsCompressorNode | null = null;
   private musicGain: GainNode | null = null;
   private musicTimer: number | null = null;
   private musicStep = 0;
@@ -34,7 +35,7 @@ class KeepsakeSoundEngine {
 
     this.musicGain = context.createGain();
     this.musicGain.gain.setValueAtTime(0.0001, context.currentTime);
-    this.musicGain.gain.exponentialRampToValueAtTime(0.07, context.currentTime + 0.8);
+    this.musicGain.gain.exponentialRampToValueAtTime(0.42, context.currentTime + 0.8);
     this.musicGain.connect(this.master!);
     this.scheduleMusicPhrase();
     this.musicTimer = window.setInterval(() => this.scheduleMusicPhrase(), 3200);
@@ -64,22 +65,72 @@ class KeepsakeSoundEngine {
     const context = this.readyContext();
     if (!context) return;
     const now = context.currentTime;
-    this.tone(510, now, 0.07, 0.12, "triangle", 300);
-    this.tone(180, now, 0.045, 0.065, "sine", 120);
+    this.tone(540, now, 0.09, 0.34, "triangle", 300);
+    this.tone(190, now, 0.065, 0.24, "sine", 115);
   }
 
   playMiss() {
     const context = this.readyContext();
     if (!context) return;
     const now = context.currentTime;
-    this.tone(145, now, 0.12, 0.07, "sine", 105);
-    this.tone(112, now + 0.025, 0.11, 0.04, "triangle", 92);
+    this.tone(150, now, 0.16, 0.27, "sine", 92);
+    this.tone(112, now + 0.025, 0.14, 0.18, "triangle", 78);
+  }
+
+  playPickup() {
+    const context = this.readyContext();
+    if (!context) return;
+    const now = context.currentTime;
+    this.tone(230, now, 0.045, 0.21, "triangle", 360);
+    this.tone(720, now + 0.018, 0.035, 0.14, "sine", 560);
+  }
+
+  playShuffle() {
+    const context = this.readyContext();
+    if (!context) return;
+    const now = context.currentTime;
+    [180, 235, 310, 410].forEach((frequency, index) => {
+      this.tone(frequency, now + index * 0.045, 0.13, 0.2, "triangle", frequency * 1.45);
+    });
+  }
+
+  playRotate() {
+    const context = this.readyContext();
+    if (!context) return;
+    const now = context.currentTime;
+    this.tone(390, now, 0.06, 0.23, "square", 560);
+    this.tone(620, now + 0.055, 0.045, 0.18, "triangle", 470);
+  }
+
+  playHint() {
+    const context = this.readyContext();
+    if (!context) return;
+    const now = context.currentTime;
+    [660, 880, 1100].forEach((frequency, index) => {
+      this.tone(frequency, now + index * 0.07, 0.28, 0.17, "sine");
+    });
+  }
+
+  playPause() {
+    const context = this.readyContext();
+    if (!context) return;
+    const now = context.currentTime;
+    this.tone(440, now, 0.22, 0.24, "sine", 220);
+    this.tone(330, now + 0.04, 0.22, 0.18, "triangle", 165);
+  }
+
+  playResume() {
+    const context = this.readyContext();
+    if (!context) return;
+    const now = context.currentTime;
+    this.tone(220, now, 0.18, 0.25, "sine", 440);
+    this.tone(330, now + 0.08, 0.2, 0.19, "triangle", 660);
   }
 
   playTimerPulse() {
     const context = this.readyContext();
     if (!context) return;
-    this.tone(880, context.currentTime, 0.035, 0.022, "sine", 760);
+    this.tone(920, context.currentTime, 0.055, 0.16, "sine", 760);
   }
 
   playComplete() {
@@ -87,8 +138,8 @@ class KeepsakeSoundEngine {
     if (!context) return;
     const now = context.currentTime;
     [261.63, 329.63, 392, 523.25].forEach((frequency, index) => {
-      this.tone(frequency, now + index * 0.115, 0.65, 0.095, "sine");
-      this.tone(frequency * 2, now + index * 0.115, 0.42, 0.025, "triangle");
+      this.tone(frequency, now + index * 0.115, 0.75, 0.28, "sine");
+      this.tone(frequency * 2, now + index * 0.115, 0.5, 0.13, "triangle");
     });
   }
 
@@ -99,8 +150,14 @@ class KeepsakeSoundEngine {
       if (!AudioContextClass) return null;
       this.context = new AudioContextClass();
       this.master = this.context.createGain();
-      this.master.gain.value = 0.55;
-      this.master.connect(this.context.destination);
+      this.limiter = this.context.createDynamicsCompressor();
+      this.master.gain.value = 1;
+      this.limiter.threshold.value = -10;
+      this.limiter.knee.value = 12;
+      this.limiter.ratio.value = 5;
+      this.limiter.attack.value = 0.003;
+      this.limiter.release.value = 0.22;
+      this.master.connect(this.limiter).connect(this.context.destination);
       return this.context;
     } catch {
       return null;
@@ -127,7 +184,7 @@ class KeepsakeSoundEngine {
       oscillator.type = index === 0 ? "sine" : "triangle";
       oscillator.frequency.setValueAtTime(frequency / (index + 1), start);
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(index === 0 ? 0.17 : 0.055, start + 0.35);
+      gain.gain.exponentialRampToValueAtTime(index === 0 ? 0.24 : 0.11, start + 0.35);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + 2.9);
       oscillator.connect(gain).connect(destination);
       this.musicNodes.add(oscillator);

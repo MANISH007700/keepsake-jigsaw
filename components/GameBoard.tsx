@@ -129,6 +129,7 @@ export default function GameBoard({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() !== "r" || state.selectedPieceId === null || state.phase !== "playing") return;
+      soundEngine.playRotate();
       dispatch({ type: "ROTATE", id: state.selectedPieceId });
     };
     window.addEventListener("keydown", onKeyDown);
@@ -170,6 +171,7 @@ export default function GameBoard({
     element.style.zIndex = "1000";
     element.style.transform = `translate3d(${event.clientX - offsetCoreX - displayPadding}px, ${event.clientY - offsetCoreY - displayPadding}px, 0) rotate(${piece.rotation}deg) scale(1.055)`;
     dispatch({ type: "SELECT", id: piece.id });
+    soundEngine.playPickup();
     event.preventDefault();
   };
 
@@ -194,6 +196,7 @@ export default function GameBoard({
     dragRef.current = null;
 
     if (!drag.moved && state.difficulty === "hard") {
+      soundEngine.playRotate();
       dispatch({ type: "ROTATE", id: piece.id });
       return;
     }
@@ -288,8 +291,8 @@ export default function GameBoard({
           </div>
         </div>
         <div className="tray-actions">
-          <button className={`button button-quiet${trayMode === "pile" ? " is-active" : ""}`} onClick={() => arrangeTray("pile")}>Pile scramble</button>
-          <button className={`button button-quiet${trayMode === "spread" ? " is-active" : ""}`} onClick={() => arrangeTray("spread")}>Neat spread</button>
+          <button className={`button button-quiet${trayMode === "pile" ? " is-active" : ""}`} onClick={() => { soundEngine.playShuffle(); arrangeTray("pile"); }}>Pile scramble</button>
+          <button className={`button button-quiet${trayMode === "spread" ? " is-active" : ""}`} onClick={() => { soundEngine.playShuffle(); arrangeTray("spread"); }}>Neat spread</button>
         </div>
       </section>
 
@@ -313,7 +316,7 @@ export default function GameBoard({
           <span className="eyebrow">No peeking</span>
           <h2>Puzzle paused</h2>
           <p>Your board and pieces are tucked away until you’re ready.</p>
-          <button className="button button-primary" onClick={() => dispatch({ type: "RESUME" })}>Resume puzzle</button>
+          <button className="button button-primary" onClick={() => { soundEngine.playResume(); dispatch({ type: "RESUME" }); }}>Resume puzzle</button>
         </div>
       )}
     </div>
