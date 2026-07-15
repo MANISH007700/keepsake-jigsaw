@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BoardGuides, PieceCanvas } from "./CanvasViews";
 import { shouldSnap } from "@/lib/puzzle";
 import { shuffle } from "@/lib/rng";
+import { soundEngine } from "@/lib/sound";
+import { boundedPilePoint, fitTrayLayout } from "@/lib/tray";
 import type { GameAction } from "@/lib/game";
 import type { GameState, ImageAsset, Piece, Point, RasterPiece, Zone } from "@/lib/types";
 import { trackAnalytics } from "@/lib/analytics";
@@ -40,28 +42,6 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function playSnap() {
-  try {
-    const AudioContextClass = window.AudioContext ||
-      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const context = new AudioContextClass();
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(680, context.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(390, context.currentTime + 0.055);
-    gain.gain.setValueAtTime(0.045, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.07);
-    oscillator.connect(gain).connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.075);
-    oscillator.addEventListener("ended", () => void context.close());
-  } catch {
-    // Sound is a progressive enhancement; browsers may block it.
-  }
-}
-
 export default function GameBoard({
   state,
   asset,
@@ -78,7 +58,7 @@ export default function GameBoard({
   const [boardRef, boardSize] = useElementSize<HTMLDivElement>();
   const [boardWrapRef, boardWrapSize] = useElementSize<HTMLDivElement>();
   const [trayScrollRef, trayViewport] = useElementSize<HTMLDivElement>();
-  const [isMobile, setIsMobile] = useState(false);
+  const [trayMode, setTrayMode] = useState<"pile" | "spread">("pile");
   const traySurfaceRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const arrangedVersion = useRef<number>(-1);
@@ -91,46 +71,60 @@ export default function GameBoard({
     ? Math.min(boardWrapSize.width, boardWrapSize.height * boardAspect)
     : undefined;
   const gap = 9;
-  const desktopColumns = Math.max(1, Math.floor((trayViewport.width - gap) / Math.max(1, cellWidth + gap)));
-  const trayColumns = isMobile ? Math.max(1, Math.ceil(unlockedCount / 2)) : desktopColumns;
-  const trayRows = isMobile ? Math.min(2, Math.max(1, unlockedCount)) : Math.max(1, Math.ceil(unlockedCount / trayColumns));
-  const trayWidth = isMobile
-    ? Math.max(trayViewport.width, trayColumns * (cellWidth + gap) + gap)
-    : Math.max(1, trayViewport.width);
-  const trayHeight = isMobile
-    ? Math.max(132, trayRows * (cellHeight + gap) + gap)
-    : Math.max(trayViewport.height, trayRows * (cellHeight + gap) + gap);
+  const trayWidth = Math.max(1, trayViewport.width);
+  const trayHeight = Math.max(1, trayViewport.height);
+  const visualPieceWidth = cellWidth + displayPadding * 2;
+  const visualPieceHeight = cellHeight + displayPadding * 2;
+  const trayFit = useMemo(
+    () => fitTrayLayout(Math.max(1, state.pieces.length), trayWidth, trayHeight, visualPieceWidth, visualPieceHeight, gap),
+    [state.pieces.length, trayHeight, trayWidth, visualPieceHeight, visualPieceWidth],
+  );
+  const pileScale = Math.min(
+    0.76,
+    Math.max(
+      trayFit.scale,
+      Math.min(0.46, (trayWidth - gap * 2) / Math.max(1, visualPieceWidth), (trayHeight - gap * 2) / Math.max(1, visualPieceHeight)),
+    ),
+  );
+  const trayScale = trayMode === "spread" ? trayFit.scale : pileScale;
 
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 760px)");
-    const update = () => setIsMobile(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-
-  const arrangeAside = useCallback(
-    (randomize: boolean) => {
+  const arrangeTray = useCallback(
+    (mode: "pile" | "spread") => {
       if (!trayWidth || !trayHeight || !cellWidth || !cellHeight) return;
       const unlocked = state.pieces.filter((piece) => !piece.locked);
-      const ordered = randomize ? shuffle(unlocked) : unlocked.sort((a, b) => a.id - b.id);
+      const ordered = mode === "pile" ? shuffle(unlocked) : [...unlocked].sort((a, b) => a.id - b.id);
       const positions = new Map<number, Point>();
+      const scale = mode === "spread" ? trayFit.scale : pileScale;
+      const scaledVisualWidth = visualPieceWidth * scale;
+      const scaledVisualHeight = visualPieceHeight * scale;
+      const scaledPadding = displayPadding * scale;
+      const usedColumns = Math.min(trayFit.columns, Math.max(1, ordered.length));
+      const usedRows = Math.ceil(ordered.length / usedColumns);
+      const gridWidth = usedColumns * scaledVisualWidth + Math.max(0, usedColumns - 1) * gap;
+      const gridHeight = usedRows * scaledVisualHeight + Math.max(0, usedRows - 1) * gap;
+      const gridLeft = Math.max(gap, (trayWidth - gridWidth) / 2);
+      const gridTop = Math.max(gap, (trayHeight - gridHeight) / 2);
       ordered.forEach((piece, index) => {
-        const column = isMobile ? Math.floor(index / 2) : index % trayColumns;
-        const row = isMobile ? index % 2 : Math.floor(index / trayColumns);
+        const visualPoint = mode === "pile"
+          ? boundedPilePoint(index, ordered.length, trayWidth, trayHeight, scaledVisualWidth, scaledVisualHeight, gap)
+          : {
+              x: gridLeft + (index % usedColumns) * (scaledVisualWidth + gap),
+              y: gridTop + Math.floor(index / usedColumns) * (scaledVisualHeight + gap),
+            };
         positions.set(piece.id, {
-          x: (gap + column * (cellWidth + gap)) / trayWidth,
-          y: (gap + row * (cellHeight + gap)) / trayHeight,
+          x: (visualPoint.x + scaledPadding) / trayWidth,
+          y: (visualPoint.y + scaledPadding) / trayHeight,
         });
       });
+      setTrayMode(mode);
       dispatch({ type: "ARRANGE", positions });
-    }, [cellHeight, cellWidth, dispatch, isMobile, state.pieces, trayColumns, trayHeight, trayWidth]);
+    }, [cellHeight, cellWidth, dispatch, displayPadding, pileScale, state.pieces, trayFit.columns, trayFit.scale, trayHeight, trayWidth, visualPieceHeight, visualPieceWidth]);
 
   useEffect(() => {
     if (arrangedVersion.current === sessionVersion || !boardSize.width || !trayViewport.width) return;
     arrangedVersion.current = sessionVersion;
-    arrangeAside(true);
-  }, [arrangeAside, boardSize.width, sessionVersion, trayViewport.width]);
+    arrangeTray("pile");
+  }, [arrangeTray, boardSize.width, sessionVersion, trayViewport.width]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -147,20 +141,23 @@ export default function GameBoard({
     const rect = element.getBoundingClientRect();
     const raster = rasters.get(piece.id);
     if (!raster) return;
-    const padRatioX = raster.padding / raster.canvas.width;
-    const padRatioY = raster.padding / raster.canvas.height;
-    const padX = rect.width * padRatioX;
-    const padY = rect.height * padRatioY;
+    const currentScale = piece.zone === "tray" ? trayScale : 1;
+    const padX = displayPadding * currentScale;
+    const padY = displayPadding * currentScale;
     const coreLeft = rect.left + padX;
     const coreTop = rect.top + padY;
+    const pointerRatioX = clamp((event.clientX - coreLeft) / Math.max(1, cellWidth * currentScale), 0, 1);
+    const pointerRatioY = clamp((event.clientY - coreTop) / Math.max(1, cellHeight * currentScale), 0, 1);
+    const offsetCoreX = pointerRatioX * cellWidth;
+    const offsetCoreY = pointerRatioY * cellHeight;
     element.setPointerCapture(event.pointerId);
     dragRef.current = {
       id: piece.id,
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      offsetCoreX: event.clientX - coreLeft,
-      offsetCoreY: event.clientY - coreTop,
+      offsetCoreX,
+      offsetCoreY,
       originalCss: element.style.cssText,
       element,
       moved: false,
@@ -168,10 +165,10 @@ export default function GameBoard({
     element.style.position = "fixed";
     element.style.left = "0";
     element.style.top = "0";
-    element.style.width = `${rect.width}px`;
-    element.style.height = `${rect.height}px`;
+    element.style.width = `${visualPieceWidth}px`;
+    element.style.height = `${visualPieceHeight}px`;
     element.style.zIndex = "1000";
-    element.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0) rotate(${piece.rotation}deg) scale(1.055)`;
+    element.style.transform = `translate3d(${event.clientX - offsetCoreX - displayPadding}px, ${event.clientY - offsetCoreY - displayPadding}px, 0) rotate(${piece.rotation}deg) scale(1.055)`;
     dispatch({ type: "SELECT", id: piece.id });
     event.preventDefault();
   };
@@ -219,17 +216,23 @@ export default function GameBoard({
         dispatch({ type: "MOVE", id: piece.id, zone: "board", position: { x: piece.col / state.cols, y: piece.row / state.rows } });
         dispatch({ type: "LOCK", id: piece.id });
         trackAnalytics({ event: "piece_placed" });
-        playSnap();
+        soundEngine.playSnap();
         return;
       }
+      soundEngine.playMiss();
       position = {
         x: clamp(pixelPosition.x / boardRect.width, -0.12, 1 - 0.25 / state.cols),
         y: clamp(pixelPosition.y / boardRect.height, -0.12, 1 - 0.25 / state.rows),
       };
     } else {
+      const scaledPadding = displayPadding * trayScale;
+      const minX = scaledPadding;
+      const minY = scaledPadding;
+      const maxX = Math.max(minX, trayRect.width - (cellWidth + displayPadding) * trayScale);
+      const maxY = Math.max(minY, trayRect.height - (cellHeight + displayPadding) * trayScale);
       position = {
-        x: clamp((coreLeft - trayRect.left) / trayRect.width, 0, Math.max(0, 1 - cellWidth / trayRect.width)),
-        y: clamp((coreTop - trayRect.top) / trayRect.height, 0, Math.max(0, 1 - cellHeight / trayRect.height)),
+        x: clamp(coreLeft - trayRect.left, minX, maxX) / trayRect.width,
+        y: clamp(coreTop - trayRect.top, minY, maxY) / trayRect.height,
       };
     }
     dispatch({ type: "MOVE", id: piece.id, zone, position });
@@ -238,12 +241,12 @@ export default function GameBoard({
   const renderPiece = (piece: Piece, container: Size) => {
     const raster = rasters.get(piece.id);
     if (!raster) return null;
-    const coreW = cellWidth;
-    const coreH = cellHeight;
-    const visualWidth = coreW + displayPadding * 2;
-    const visualHeight = coreH + displayPadding * 2;
-    const left = piece.position.x * container.width - displayPadding;
-    const top = piece.position.y * container.height - displayPadding;
+    const scale = piece.zone === "tray" ? trayScale : 1;
+    const visualWidth = visualPieceWidth * scale;
+    const visualHeight = visualPieceHeight * scale;
+    const scaledPadding = displayPadding * scale;
+    const left = piece.position.x * container.width - scaledPadding;
+    const top = piece.position.y * container.height - scaledPadding;
     const style: React.CSSProperties = {
       width: visualWidth,
       height: visualHeight,
@@ -280,13 +283,13 @@ export default function GameBoard({
           <span className="piece-badge">{unlockedCount} left</span>
         </div>
         <div className="tray-scroll" ref={trayScrollRef}>
-          <div ref={traySurfaceRef} className="tray-surface" style={{ width: trayWidth, height: trayHeight }}>
+          <div ref={traySurfaceRef} className={`tray-surface tray-${trayMode}`} style={{ width: trayWidth, height: trayHeight }}>
             {trayPieces.map((piece) => renderPiece(piece, { width: trayWidth, height: trayHeight }))}
           </div>
         </div>
         <div className="tray-actions">
-          <button className="button button-quiet" onClick={() => dispatch({ type: "SCRAMBLE" })}>Scramble</button>
-          <button className="button button-quiet" onClick={() => arrangeAside(false)}>Move pieces aside</button>
+          <button className={`button button-quiet${trayMode === "pile" ? " is-active" : ""}`} onClick={() => arrangeTray("pile")}>Pile scramble</button>
+          <button className={`button button-quiet${trayMode === "spread" ? " is-active" : ""}`} onClick={() => arrangeTray("spread")}>Neat spread</button>
         </div>
       </section>
 

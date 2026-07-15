@@ -10,6 +10,7 @@ import { decodeImageFile, pieceResolutionWarning, validateImageFile } from "@/li
 import { formatTime, gameReducer, initialGameState } from "@/lib/game";
 import { createPieces, fitGrid, generateEdges, rasterizePieces } from "@/lib/puzzle";
 import { hashSeed } from "@/lib/rng";
+import { soundEngine } from "@/lib/sound";
 import type { Difficulty, ImageAsset, RasterPiece } from "@/lib/types";
 
 const PRESETS = [12, 30, 50, 100];
@@ -30,6 +31,7 @@ export default function Keepsake() {
   const [error, setError] = useState<string | null>(null);
   const [draggingOver, setDraggingOver] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [sessionVersion, setSessionVersion] = useState(0);
   const completionRecordedRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -37,6 +39,7 @@ export default function Keepsake() {
   const clockAnchorRef = useRef(0);
   const elapsedRef = useRef(state.elapsedMs);
   const hintTimeoutRef = useRef<number | null>(null);
+  const lastTimerPulseRef = useRef(-1);
 
   const grid = useMemo(
     () => asset ? fitGrid(state.requestedCount, asset.width, asset.height) : null,
@@ -69,6 +72,21 @@ export default function Keepsake() {
   }, [state.phase, state.timerEnabled]);
 
   useEffect(() => {
+    soundEngine.setEnabled(soundEnabled);
+    if (soundEnabled && state.phase === "playing") soundEngine.startMusic();
+    else soundEngine.stopMusic();
+  }, [soundEnabled, state.phase]);
+
+  useEffect(() => {
+    if (!state.timerEnabled || state.phase !== "playing") return;
+    const elapsedSeconds = Math.floor(state.elapsedMs / 1000);
+    if (elapsedSeconds > 0 && elapsedSeconds % 10 === 0 && elapsedSeconds !== lastTimerPulseRef.current) {
+      lastTimerPulseRef.current = elapsedSeconds;
+      soundEngine.playTimerPulse();
+    }
+  }, [state.elapsedMs, state.phase, state.timerEnabled]);
+
+  useEffect(() => {
     const onVisibility = () => {
       if (document.hidden && state.phase === "playing") {
         const elapsedMs = state.timerEnabled ? performance.now() - clockAnchorRef.current : state.elapsedMs;
@@ -92,6 +110,8 @@ export default function Keepsake() {
       event: "puzzle_completed",
       elapsedSeconds: state.timerEnabled ? elapsedMs / 1000 : undefined,
     });
+    soundEngine.stopMusic();
+    soundEngine.playComplete();
     dispatch({ type: "COMPLETE", elapsedMs });
   }, [placedCount, state.elapsedMs, state.phase, state.pieces.length, state.timerEnabled]);
 
@@ -133,6 +153,8 @@ export default function Keepsake() {
 
   const startPuzzle = async () => {
     if (!asset || !grid) return;
+    soundEngine.setEnabled(soundEnabled);
+    soundEngine.activate();
     setError(null);
     dispatch({ type: "CUTTING" });
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -142,6 +164,7 @@ export default function Keepsake() {
       const pieces = createPieces(grid.rows, grid.cols, edges, state.difficulty, seedRef.current);
       setRasters(new Map(nextRasters.map((piece) => [piece.id, piece])));
       completionRecordedRef.current = false;
+      lastTimerPulseRef.current = -1;
       setSessionVersion((value) => value + 1);
       clockAnchorRef.current = performance.now();
       trackAnalytics({ event: "puzzle_started", difficulty: state.difficulty, pieces: grid.count });
@@ -177,12 +200,24 @@ export default function Keepsake() {
 
   const replay = () => {
     if (!grid || !state.pieces.length) return;
+    soundEngine.setEnabled(soundEnabled);
+    soundEngine.activate();
     const pieces = createPieces(grid.rows, grid.cols, state.pieces.map((piece) => piece.edges), state.difficulty, seedRef.current ^ sessionVersion);
     completionRecordedRef.current = false;
+    lastTimerPulseRef.current = -1;
     setSessionVersion((value) => value + 1);
     clockAnchorRef.current = performance.now();
     trackAnalytics({ event: "puzzle_started", difficulty: state.difficulty, pieces: pieces.length });
     dispatch({ type: "REPLAY", pieces });
+  };
+
+  const toggleSound = (enabled: boolean) => {
+    setSoundEnabled(enabled);
+    soundEngine.setEnabled(enabled);
+    if (enabled) {
+      soundEngine.activate();
+      if (state.phase === "playing") soundEngine.startMusic();
+    }
   };
 
   const headerGame = ["playing", "paused", "complete"].includes(state.phase);
@@ -254,7 +289,10 @@ export default function Keepsake() {
                 <div className="photo-meta"><div><strong>{asset.name}</strong><span>{asset.width} × {asset.height}px</span></div><button className="text-button" onClick={askForPhoto}>Replace</button></div>
                 <PieceCountControl value={state.requestedCount} onChange={(count) => dispatch({ type: "SET_COUNT", count })} />
                 <DifficultyControl value={state.difficulty} onChange={(difficulty) => dispatch({ type: "SET_DIFFICULTY", difficulty })} />
-                <label className="timer-toggle"><span><strong>Race the clock</strong><small>Timer pauses when you do</small></span><input type="checkbox" checked={state.timerEnabled} onChange={(event) => dispatch({ type: "SET_TIMER", enabled: event.target.checked })} /><i /></label>
+                <div className="setup-toggles">
+                  <label className="timer-toggle"><span><strong>Race the clock</strong><small>Timer pauses when you do</small></span><input type="checkbox" checked={state.timerEnabled} onChange={(event) => dispatch({ type: "SET_TIMER", enabled: event.target.checked })} /><i /></label>
+                  <label className="timer-toggle"><span><strong>Gentle soundscape</strong><small>Music, snaps, misses & timer cues</small></span><input type="checkbox" checked={soundEnabled} onChange={(event) => toggleSound(event.target.checked)} /><i /></label>
+                </div>
                 {grid.count !== state.requestedCount && <p className="fit-note">Closest fit: <strong>{grid.count} pieces</strong> ({grid.cols} × {grid.rows})</p>}
                 {resolutionWarning && <p className="warning-note">{resolutionWarning}</p>}
                 <button className="button button-primary button-large" onClick={() => void startPuzzle()} disabled={state.phase === "cutting"}>
@@ -277,6 +315,9 @@ export default function Keepsake() {
             <div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={state.pieces.length} aria-valuenow={placedCount}><span style={{ width: `${progress}%` }} /></div>
             <div className="toolbar-actions">
               {state.timerEnabled && <span className="timer-display" aria-label={`Elapsed time ${formatTime(state.elapsedMs)}`}>{formatTime(state.elapsedMs)}</span>}
+              <button className="button button-quiet sound-button" onClick={() => toggleSound(!soundEnabled)} aria-pressed={soundEnabled} aria-label={soundEnabled ? "Turn sound off" : "Turn sound on"}>
+                {soundEnabled ? "Sound on" : "Sound off"}
+              </button>
               {state.difficulty !== "easy" && (
                 <button className="button button-quiet" onClick={showHint} disabled={state.difficulty === "hard" && state.hintsRemaining === 0}>
                   Hint{state.difficulty === "hard" ? ` · ${state.hintsRemaining}` : ""}
@@ -368,7 +409,8 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           <li><strong>Add your photo.</strong><span>Choose a JPEG or PNG. It stays in this browser only.</span></li>
           <li><strong>Choose your challenge.</strong><span>Pick 8–150 pieces, a difficulty, and whether to time yourself.</span></li>
           <li><strong>Rebuild it.</strong><span>Drag pieces from the tray. A close match clicks into place.</span></li>
-          <li><strong>Make room.</strong><span>Move pieces aside clears the board; hints briefly reveal the photo.</span></li>
+          <li><strong>Arrange your tray.</strong><span>Use Pile scramble for a tactile heap or Neat spread to see every piece at once—no scrolling.</span></li>
+          <li><strong>Listen for the fit.</strong><span>A soft snap confirms success; a low tap means try another spot. Sound can be switched off anytime.</span></li>
           <li><strong>Hard mode.</strong><span>Tap a selected piece or press R to rotate it 90 degrees.</span></li>
         </ol>
         <button className="button button-primary" onClick={onClose}>Let’s make a puzzle</button>
