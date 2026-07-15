@@ -9,6 +9,7 @@ export const initialGameState: GameState = {
   cols: 0,
   pieces: [],
   timerEnabled: true,
+  rotationEnabled: false,
   elapsedMs: 0,
   bestTime: null,
   hintVisible: false,
@@ -24,6 +25,7 @@ export type GameAction =
   | { type: "SET_COUNT"; count: number }
   | { type: "SET_DIFFICULTY"; difficulty: Difficulty }
   | { type: "SET_TIMER"; enabled: boolean }
+  | { type: "SET_ROTATION"; enabled: boolean }
   | { type: "CUTTING" }
   | { type: "START"; rows: number; cols: number; pieces: Piece[] }
   | { type: "MOVE"; id: number; zone: Zone; position: Point }
@@ -48,13 +50,21 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "IMAGE_READY":
       return { ...state, phase: "preview" };
     case "RESET":
-      return { ...initialGameState, requestedCount: state.requestedCount, difficulty: state.difficulty, bestTime: state.bestTime };
+      return { ...initialGameState, requestedCount: state.requestedCount, difficulty: state.difficulty, rotationEnabled: state.rotationEnabled, bestTime: state.bestTime };
     case "SET_COUNT":
       return { ...state, requestedCount: Math.min(150, Math.max(8, Math.round(action.count))) };
     case "SET_DIFFICULTY":
-      return { ...state, difficulty: action.difficulty };
+      return {
+        ...state,
+        difficulty: action.difficulty,
+        rotationEnabled: action.difficulty === "hard"
+          ? true
+          : state.difficulty === "hard" ? false : state.rotationEnabled,
+      };
     case "SET_TIMER":
       return { ...state, timerEnabled: action.enabled };
+    case "SET_ROTATION":
+      return { ...state, rotationEnabled: state.difficulty === "hard" ? true : action.enabled };
     case "CUTTING":
       return { ...state, phase: "cutting" };
     case "START":
@@ -96,7 +106,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "SELECT":
       return { ...state, selectedPieceId: action.id };
     case "ROTATE":
-      if (state.difficulty !== "hard") return state;
+      if (!state.rotationEnabled) return state;
       return {
         ...state,
         pieces: state.pieces.map((piece) =>

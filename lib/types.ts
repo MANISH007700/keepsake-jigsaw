@@ -47,6 +47,7 @@ export type GameState = {
   cols: number;
   pieces: Piece[];
   timerEnabled: boolean;
+  rotationEnabled: boolean;
   elapsedMs: number;
   bestTime: number | null;
   hintVisible: boolean;

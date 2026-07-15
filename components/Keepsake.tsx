@@ -162,7 +162,7 @@ export default function Keepsake() {
     try {
       const edges = generateEdges(grid.rows, grid.cols, seedRef.current);
       const nextRasters = rasterizePieces(asset.canvas, grid.rows, grid.cols, edges);
-      const pieces = createPieces(grid.rows, grid.cols, edges, state.difficulty, seedRef.current);
+      const pieces = createPieces(grid.rows, grid.cols, edges, state.difficulty, seedRef.current, state.rotationEnabled);
       setRasters(new Map(nextRasters.map((piece) => [piece.id, piece])));
       completionRecordedRef.current = false;
       lastTimerPulseRef.current = -1;
@@ -206,7 +206,7 @@ export default function Keepsake() {
     soundEngine.setEnabled(soundEnabled);
     soundEngine.activate();
     soundEngine.playShuffle();
-    const pieces = createPieces(grid.rows, grid.cols, state.pieces.map((piece) => piece.edges), state.difficulty, seedRef.current ^ sessionVersion);
+    const pieces = createPieces(grid.rows, grid.cols, state.pieces.map((piece) => piece.edges), state.difficulty, seedRef.current ^ sessionVersion, state.rotationEnabled);
     completionRecordedRef.current = false;
     lastTimerPulseRef.current = -1;
     setSessionVersion((value) => value + 1);
@@ -297,6 +297,7 @@ export default function Keepsake() {
                 <div className="setup-toggles">
                   <label className="timer-toggle"><span><strong>Race the clock</strong><small>Timer pauses when you do</small></span><input type="checkbox" checked={state.timerEnabled} onChange={(event) => dispatch({ type: "SET_TIMER", enabled: event.target.checked })} /><i /></label>
                   <label className="timer-toggle"><span><strong>Full soundscape</strong><small>100% output · use your Mac volume</small></span><input type="checkbox" checked={soundEnabled} onChange={(event) => toggleSound(event.target.checked)} /><i /></label>
+                  <label className={`timer-toggle rotation-toggle${state.difficulty === "hard" ? " is-required" : ""}`}><span><strong>Piece rotation</strong><small>{state.difficulty === "hard" ? "Required in Hard mode" : "Turn pieces in 90° steps"}</small></span><input type="checkbox" checked={state.rotationEnabled} disabled={state.difficulty === "hard"} onChange={(event) => dispatch({ type: "SET_ROTATION", enabled: event.target.checked })} /><i /></label>
                 </div>
                 {grid.count !== state.requestedCount && <p className="fit-note">Closest fit: <strong>{grid.count} pieces</strong> ({grid.cols} × {grid.rows})</p>}
                 {resolutionWarning && <p className="warning-note">{resolutionWarning}</p>}
@@ -328,8 +329,12 @@ export default function Keepsake() {
                   Hint{state.difficulty === "hard" ? ` · ${state.hintsRemaining}` : ""}
                 </button>
               )}
-              {state.difficulty === "hard" && state.selectedPieceId !== null && (
-                <button className="button button-quiet" onClick={() => { soundEngine.playRotate(); dispatch({ type: "ROTATE", id: state.selectedPieceId! }); }}>Rotate ↻</button>
+              {!state.rotationEnabled ? (
+                <button className="button button-quiet" onClick={() => dispatch({ type: "SET_ROTATION", enabled: true })}>Enable rotation</button>
+              ) : (
+                <button className="button button-quiet" disabled={state.selectedPieceId === null} onClick={() => { soundEngine.playRotate(); dispatch({ type: "ROTATE", id: state.selectedPieceId! }); }}>
+                  {state.selectedPieceId === null ? "Select piece to rotate" : "Rotate piece ↻"}
+                </button>
               )}
               {state.phase === "playing" && <button className="button button-quiet" onClick={pause}>Pause</button>}
               <button className="button button-quiet" onClick={resetToEmpty}>New photo</button>
@@ -412,11 +417,11 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         <h2 id="help-title">How to play</h2>
         <ol>
           <li><strong>Add your photo.</strong><span>Choose a JPEG or PNG. It stays in this browser only.</span></li>
-          <li><strong>Choose your challenge.</strong><span>Pick 8–150 pieces, a difficulty, and whether to time yourself.</span></li>
+          <li><strong>Choose your challenge.</strong><span>Pick 8–150 pieces, a difficulty, timer, and optional piece rotation. Hard mode requires rotation.</span></li>
           <li><strong>Rebuild it.</strong><span>Drag pieces from the tray. A close match clicks into place.</span></li>
           <li><strong>Arrange your tray.</strong><span>Use Pile scramble for a tactile heap or Neat spread to see every piece at once—no scrolling.</span></li>
           <li><strong>Listen for the fit.</strong><span>A soft snap confirms success; a low tap means try another spot. Sound can be switched off anytime.</span></li>
-          <li><strong>Hard mode.</strong><span>Tap a selected piece or press R to rotate it 90 degrees.</span></li>
+          <li><strong>Rotate when you want.</strong><span>Enable rotation in setup or during play, then select a piece and use Rotate, tap it, or press R.</span></li>
         </ol>
         <button className="button button-primary" onClick={onClose}>Let’s make a puzzle</button>
       </div>

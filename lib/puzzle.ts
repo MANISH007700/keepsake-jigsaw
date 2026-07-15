@@ -162,6 +162,7 @@ export function createPieces(
   edgeMap: PieceEdges[],
   difficulty: Difficulty,
   seed: number,
+  rotationEnabled = difficulty === "hard",
 ): Piece[] {
   const random = mulberry32(seed ^ 0xa53c9e1f);
   const ids = shuffle(Array.from({ length: rows * cols }, (_, id) => id), random);
@@ -177,7 +178,7 @@ export function createPieces(
     edges: edgeMap[id],
     zone: "tray" as const,
     position: positionsById.get(id) ?? { x: 0.1, y: 0.1 },
-    rotation: difficulty === "hard" ? Math.floor(random() * 4) * 90 : 0,
+    rotation: rotationEnabled ? Math.floor(random() * 4) * 90 : 0,
     locked: false,
   }));
 }
@@ -188,8 +189,9 @@ export function shouldSnap(
   pieceWidth: number,
   rotation: number,
   difficulty: Difficulty,
+  rotationRequired = difficulty === "hard",
 ): boolean {
-  if (difficulty === "hard" && ((rotation % 360) + 360) % 360 !== 0) return false;
+  if (rotationRequired && ((rotation % 360) + 360) % 360 !== 0) return false;
   const tolerance = pieceWidth * (difficulty === "easy" ? 0.4 : difficulty === "medium" ? 0.3 : 0.2);
   return Math.hypot(current.x - target.x, current.y - target.y) <= tolerance;
 }

@@ -55,6 +55,7 @@ describe("snap detection", () => {
     expect(shouldSnap({ x: 35, y: 0 }, { x: 0, y: 0 }, 100, 0, "medium")).toBe(false);
     expect(shouldSnap({ x: 10, y: 0 }, { x: 0, y: 0 }, 100, 90, "hard")).toBe(false);
     expect(shouldSnap({ x: 19, y: 0 }, { x: 0, y: 0 }, 100, 360, "hard")).toBe(true);
+    expect(shouldSnap({ x: 5, y: 0 }, { x: 0, y: 0 }, 100, 90, "easy", true)).toBe(false);
   });
 });
 

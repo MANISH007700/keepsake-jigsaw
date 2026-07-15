@@ -128,13 +128,13 @@ export default function GameBoard({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "r" || state.selectedPieceId === null || state.phase !== "playing") return;
+      if (event.key.toLowerCase() !== "r" || !state.rotationEnabled || state.selectedPieceId === null || state.phase !== "playing") return;
       soundEngine.playRotate();
       dispatch({ type: "ROTATE", id: state.selectedPieceId });
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [dispatch, state.phase, state.selectedPieceId]);
+  }, [dispatch, state.phase, state.rotationEnabled, state.selectedPieceId]);
 
   const beginDrag = (event: React.PointerEvent<HTMLCanvasElement>, piece: Piece) => {
     if (piece.locked || state.phase !== "playing" || !event.isPrimary || event.button !== 0 || dragRef.current) return;
@@ -195,7 +195,7 @@ export default function GameBoard({
     if (drag.element.hasPointerCapture(event.pointerId)) drag.element.releasePointerCapture(event.pointerId);
     dragRef.current = null;
 
-    if (!drag.moved && state.difficulty === "hard") {
+    if (!drag.moved && state.rotationEnabled) {
       soundEngine.playRotate();
       dispatch({ type: "ROTATE", id: piece.id });
       return;
@@ -215,7 +215,7 @@ export default function GameBoard({
     if (zone === "board") {
       const pixelPosition = { x: coreLeft - boardRect.left, y: coreTop - boardRect.top };
       const target = { x: piece.col * cellWidth, y: piece.row * cellHeight };
-      if (shouldSnap(pixelPosition, target, Math.min(cellWidth, cellHeight), piece.rotation, state.difficulty)) {
+      if (shouldSnap(pixelPosition, target, Math.min(cellWidth, cellHeight), piece.rotation, state.difficulty, state.rotationEnabled)) {
         dispatch({ type: "MOVE", id: piece.id, zone: "board", position: { x: piece.col / state.cols, y: piece.row / state.rows } });
         dispatch({ type: "LOCK", id: piece.id });
         trackAnalytics({ event: "piece_placed" });
@@ -299,7 +299,7 @@ export default function GameBoard({
       <section className="board-panel" aria-label="Puzzle board">
         <div className="board-caption">
           <span className="eyebrow">Your board</span>
-          {state.difficulty === "hard" && <span className="rotate-note">Tap a piece or press R to rotate</span>}
+          {state.rotationEnabled && <span className="rotate-note">Tap a piece or press R to rotate</span>}
         </div>
         <div className="board-wrap" ref={boardWrapRef}>
           <div ref={boardRef} className="board-shell" style={{ aspectRatio: `${asset.width} / ${asset.height}`, width: fittedBoardWidth }}>

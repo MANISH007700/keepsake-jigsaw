@@ -4,7 +4,16 @@ type AudioWindow = Window & typeof globalThis & {
   webkitAudioContext?: typeof AudioContext;
 };
 
-const MUSIC_NOTES = [220, 261.63, 293.66, 329.63, 392, 329.63, 293.66, 261.63];
+const MEMORY_CHORDS = [
+  { chord: [130.81, 164.81, 196, 246.94], melody: [523.25, 493.88] }, // Cmaj7
+  { chord: [123.47, 146.83, 196, 220], melody: [440, 392] }, // G6/B
+  { chord: [110, 130.81, 164.81, 196], melody: [392, 329.63] }, // Am7
+  { chord: [98, 123.47, 146.83, 164.81], melody: [369.99, 392] }, // Em7/G
+  { chord: [87.31, 110, 130.81, 164.81], melody: [440, 392] }, // Fmaj7
+  { chord: [82.41, 98, 130.81, 164.81], melody: [329.63, 293.66] }, // C/E
+  { chord: [73.42, 87.31, 110, 130.81], melody: [349.23, 329.63] }, // Dm7
+  { chord: [98, 130.81, 146.83, 196], melody: [293.66, 392] }, // Gsus4
+];
 
 class KeepsakeSoundEngine {
   private context: AudioContext | null = null;
@@ -35,10 +44,10 @@ class KeepsakeSoundEngine {
 
     this.musicGain = context.createGain();
     this.musicGain.gain.setValueAtTime(0.0001, context.currentTime);
-    this.musicGain.gain.exponentialRampToValueAtTime(0.42, context.currentTime + 0.8);
+    this.musicGain.gain.exponentialRampToValueAtTime(0.5, context.currentTime + 1.2);
     this.musicGain.connect(this.master!);
     this.scheduleMusicPhrase();
-    this.musicTimer = window.setInterval(() => this.scheduleMusicPhrase(), 3200);
+    this.musicTimer = window.setInterval(() => this.scheduleMusicPhrase(), 5400);
   }
 
   stopMusic() {
@@ -175,24 +184,39 @@ class KeepsakeSoundEngine {
     const context = this.context;
     const destination = this.musicGain;
     if (!context || !destination || !this.enabled) return;
-    const start = context.currentTime + 0.04;
-    const rootIndex = this.musicStep % MUSIC_NOTES.length;
-    const notes = [MUSIC_NOTES[rootIndex], MUSIC_NOTES[(rootIndex + 2) % MUSIC_NOTES.length]];
-    notes.forEach((frequency, index) => {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = index === 0 ? "sine" : "triangle";
-      oscillator.frequency.setValueAtTime(frequency / (index + 1), start);
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(index === 0 ? 0.24 : 0.11, start + 0.35);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 2.9);
-      oscillator.connect(gain).connect(destination);
-      this.musicNodes.add(oscillator);
-      oscillator.addEventListener("ended", () => this.musicNodes.delete(oscillator));
-      oscillator.start(start);
-      oscillator.stop(start + 3);
+    const start = context.currentTime + 0.06;
+    const phrase = MEMORY_CHORDS[this.musicStep % MEMORY_CHORDS.length];
+
+    phrase.chord.forEach((frequency, index) => {
+      this.musicTone(frequency, start + index * 0.14, 4.75 - index * 0.08, index === 0 ? 0.18 : 0.105, index === 0 ? "sine" : "triangle");
+      if (index > 0) this.musicTone(frequency * 2, start + index * 0.14 + 0.018, 2.4, 0.024, "sine");
     });
-    this.musicStep = (this.musicStep + 1) % MUSIC_NOTES.length;
+    phrase.melody.forEach((frequency, index) => {
+      const noteStart = start + 1.15 + index * 1.62;
+      this.musicTone(frequency, noteStart, 1.7, 0.14, "sine");
+      this.musicTone(frequency / 2, noteStart + 0.025, 2.05, 0.05, "triangle");
+    });
+    this.musicStep = (this.musicStep + 1) % MEMORY_CHORDS.length;
+  }
+
+  private musicTone(frequency: number, start: number, duration: number, volume: number, type: OscillatorType) {
+    const context = this.context;
+    const destination = this.musicGain;
+    if (!context || !destination) return;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, start);
+    oscillator.detune.setValueAtTime(type === "triangle" ? -3 : 2, start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(volume, start + 0.055);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume * 0.38), start + duration * 0.42);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    oscillator.connect(gain).connect(destination);
+    this.musicNodes.add(oscillator);
+    oscillator.addEventListener("ended", () => this.musicNodes.delete(oscillator));
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.02);
   }
 
   private tone(

@@ -117,6 +117,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(255, 122, 89
 .timer-toggle i::after { content: ""; position: absolute; left: 3px; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: #bdc5d0; transition: .2s; }
 .timer-toggle input:checked + i { background: rgba(255,122,89,.45); }
 .timer-toggle input:checked + i::after { transform: translateX(16px); background: var(--coral); }
+.rotation-toggle { grid-column: 1 / -1; }
+.rotation-toggle.is-required { cursor: default; }
+.rotation-toggle.is-required i { opacity: .72; }
 .fit-note, .warning-note { margin: 8px 1px; font-size: 11px; }
 .fit-note { color: #9aa5b5; }
 .warning-note { padding: 7px 9px; border-radius: 6px; background: rgba(232,182,76,.1); color: #e2c27c; }
