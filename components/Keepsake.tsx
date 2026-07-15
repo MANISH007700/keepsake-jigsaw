@@ -49,6 +49,7 @@ export default function Keepsake() {
     ? pieceResolutionWarning(asset.width, asset.height, grid.rows, grid.cols)
     : null;
   const placedCount = state.pieces.filter((piece) => piece.locked).length;
+  const trayHintAvailable = state.pieces.some((piece) => !piece.locked && piece.zone === "tray");
   const progress = state.pieces.length ? (placedCount / state.pieces.length) * 100 : 0;
 
   useEffect(() => {
@@ -183,11 +184,17 @@ export default function Keepsake() {
   };
 
   const showHint = () => {
+    const candidates = state.pieces.filter((piece) => !piece.locked && piece.zone === "tray");
+    if (candidates.length === 0) return;
+    const freshCandidates = candidates.length > 1
+      ? candidates.filter((piece) => piece.id !== state.hintedPieceId)
+      : candidates;
+    const target = freshCandidates[Math.floor(Math.random() * freshCandidates.length)];
     soundEngine.playHint();
-    dispatch({ type: "SHOW_HINT" });
+    dispatch({ type: "SHOW_HINT", id: target.id });
     trackAnalytics({ event: "hint_used" });
     if (hintTimeoutRef.current) window.clearTimeout(hintTimeoutRef.current);
-    hintTimeoutRef.current = window.setTimeout(() => dispatch({ type: "HIDE_HINT" }), 2000);
+    hintTimeoutRef.current = window.setTimeout(() => dispatch({ type: "HIDE_HINT" }), 3400);
   };
 
   const resetToEmpty = () => {
@@ -324,11 +331,9 @@ export default function Keepsake() {
               <button className="button button-quiet sound-button" onClick={() => toggleSound(!soundEnabled)} aria-pressed={soundEnabled} aria-label={soundEnabled ? "Turn sound off" : "Turn sound on"}>
                 {soundEnabled ? "Sound on" : "Sound off"}
               </button>
-              {state.difficulty !== "easy" && (
-                <button className="button button-quiet" onClick={showHint} disabled={state.difficulty === "hard" && state.hintsRemaining === 0}>
-                  Hint{state.difficulty === "hard" ? ` · ${state.hintsRemaining}` : ""}
-                </button>
-              )}
+              <button className="button button-quiet" onClick={showHint} disabled={!trayHintAvailable || (state.difficulty === "hard" && state.hintsRemaining === 0)}>
+                Hint{state.difficulty === "hard" ? ` · ${state.hintsRemaining}` : ""}
+              </button>
               {!state.rotationEnabled ? (
                 <button className="button button-quiet" onClick={() => dispatch({ type: "SET_ROTATION", enabled: true })}>Enable rotation</button>
               ) : (

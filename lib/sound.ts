@@ -188,31 +188,52 @@ class KeepsakeSoundEngine {
     const phrase = MEMORY_CHORDS[this.musicStep % MEMORY_CHORDS.length];
 
     phrase.chord.forEach((frequency, index) => {
-      this.musicTone(frequency, start + index * 0.14, 4.75 - index * 0.08, index === 0 ? 0.18 : 0.105, index === 0 ? "sine" : "triangle");
-      if (index > 0) this.musicTone(frequency * 2, start + index * 0.14 + 0.018, 2.4, 0.024, "sine");
+      this.musicTone(frequency, start + index * 0.14, 4.75 - index * 0.08, index === 0 ? 0.2 : 0.125, index === 0 ? "sine" : "triangle", "piano");
+      if (index > 0) this.musicTone(frequency * 2, start + index * 0.14 + 0.018, 2.6, 0.035, "sine", "piano");
     });
     phrase.melody.forEach((frequency, index) => {
       const noteStart = start + 1.15 + index * 1.62;
-      this.musicTone(frequency, noteStart, 1.7, 0.14, "sine");
-      this.musicTone(frequency / 2, noteStart + 0.025, 2.05, 0.05, "triangle");
+      this.musicTone(frequency, noteStart, 1.85, 0.17, "triangle", "piano");
+      this.musicTone(frequency * 2, noteStart + 0.012, 1.15, 0.032, "sine", "piano");
     });
+    this.musicTone(phrase.melody[0], start + 0.72, 3.45, 0.055, "sawtooth", "violin");
+    this.musicTone(phrase.melody[1], start + 3.12, 2.05, 0.048, "sawtooth", "violin");
     this.musicStep = (this.musicStep + 1) % MEMORY_CHORDS.length;
   }
 
-  private musicTone(frequency: number, start: number, duration: number, volume: number, type: OscillatorType) {
+  private musicTone(
+    frequency: number,
+    start: number,
+    duration: number,
+    volume: number,
+    type: OscillatorType,
+    voice: "piano" | "violin" = "piano",
+  ) {
     const context = this.context;
     const destination = this.musicGain;
     if (!context || !destination) return;
     const oscillator = context.createOscillator();
     const gain = context.createGain();
+    const filter = context.createBiquadFilter();
     oscillator.type = type;
     oscillator.frequency.setValueAtTime(frequency, start);
-    oscillator.detune.setValueAtTime(type === "triangle" ? -3 : 2, start);
+    oscillator.detune.setValueAtTime(voice === "violin" ? -5 : type === "triangle" ? -3 : 2, start);
+    if (voice === "violin") {
+      oscillator.detune.linearRampToValueAtTime(5, start + 0.58);
+      oscillator.detune.linearRampToValueAtTime(-4, start + 1.12);
+      oscillator.detune.linearRampToValueAtTime(4, start + Math.min(duration - 0.1, 1.75));
+    }
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(voice === "violin" ? 1650 : 3600, start);
+    filter.Q.value = voice === "violin" ? 1.1 : 0.45;
     gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(volume, start + 0.055);
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume * 0.38), start + duration * 0.42);
+    gain.gain.exponentialRampToValueAtTime(volume, start + (voice === "violin" ? 0.62 : 0.018));
+    gain.gain.exponentialRampToValueAtTime(
+      Math.max(0.0001, volume * (voice === "violin" ? 0.72 : 0.24)),
+      start + duration * (voice === "violin" ? 0.68 : 0.38),
+    );
     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-    oscillator.connect(gain).connect(destination);
+    oscillator.connect(filter).connect(gain).connect(destination);
     this.musicNodes.add(oscillator);
     oscillator.addEventListener("ended", () => this.musicNodes.delete(oscillator));
     oscillator.start(start);

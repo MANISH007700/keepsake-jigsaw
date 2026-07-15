@@ -78,6 +78,7 @@ export function PieceCanvas({
   raster,
   style,
   selected,
+  hinted,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -86,6 +87,7 @@ export function PieceCanvas({
   raster: RasterPiece;
   style: React.CSSProperties;
   selected: boolean;
+  hinted: boolean;
   onPointerDown: (event: React.PointerEvent<HTMLCanvasElement>) => void;
   onPointerMove: (event: React.PointerEvent<HTMLCanvasElement>) => void;
   onPointerUp: (event: React.PointerEvent<HTMLCanvasElement>) => void;
@@ -116,7 +118,7 @@ export function PieceCanvas({
   return (
     <canvas
       ref={ref}
-      className={`puzzle-piece${piece.locked ? " is-locked" : ""}${selected ? " is-selected" : ""}`}
+      className={`puzzle-piece${piece.locked ? " is-locked" : ""}${selected ? " is-selected" : ""}${hinted ? " is-hinted" : ""}`}
       style={style}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

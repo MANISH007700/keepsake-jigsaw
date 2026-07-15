@@ -27,3 +27,22 @@ describe("optional piece rotation", () => {
     expect(gameReducer(hard, { type: "SET_DIFFICULTY", difficulty: "medium" }).rotationEnabled).toBe(false);
   });
 });
+
+describe("piece hints", () => {
+  it("highlights a tray piece on easy and medium without consuming a hint", () => {
+    for (const difficulty of ["easy", "medium"] as const) {
+      const playing = { ...initialGameState, phase: "playing" as const, difficulty, pieces: [piece] };
+      const hinted = gameReducer(playing, { type: "SHOW_HINT", id: piece.id });
+      expect(hinted.hintVisible).toBe(true);
+      expect(hinted.hintedPieceId).toBe(piece.id);
+      expect(hinted.hintsRemaining).toBe(3);
+    }
+  });
+
+  it("keeps hard mode to three piece hints", () => {
+    const hard = { ...initialGameState, phase: "playing" as const, difficulty: "hard" as const, pieces: [piece], hintsRemaining: 1 };
+    const lastHint = gameReducer(hard, { type: "SHOW_HINT", id: piece.id });
+    expect(lastHint.hintsRemaining).toBe(0);
+    expect(gameReducer(lastHint, { type: "SHOW_HINT", id: piece.id })).toBe(lastHint);
+  });
+});

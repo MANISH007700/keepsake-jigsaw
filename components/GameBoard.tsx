@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BoardGuides, PieceCanvas } from "./CanvasViews";
 import { shouldSnap } from "@/lib/puzzle";
 import { shuffle } from "@/lib/rng";
@@ -171,6 +171,7 @@ export default function GameBoard({
     element.style.zIndex = "1000";
     element.style.transform = `translate3d(${event.clientX - offsetCoreX - displayPadding}px, ${event.clientY - offsetCoreY - displayPadding}px, 0) rotate(${piece.rotation}deg) scale(1.055)`;
     dispatch({ type: "SELECT", id: piece.id });
+    if (state.hintedPieceId === piece.id) dispatch({ type: "HIDE_HINT" });
     soundEngine.playPickup();
     event.preventDefault();
   };
@@ -250,23 +251,60 @@ export default function GameBoard({
     const scaledPadding = displayPadding * scale;
     const left = piece.position.x * container.width - scaledPadding;
     const top = piece.position.y * container.height - scaledPadding;
+    const hinted = state.hintVisible && state.hintedPieceId === piece.id && piece.zone === "tray";
     const style: React.CSSProperties = {
       width: visualWidth,
       height: visualHeight,
       transform: `translate3d(${left}px, ${top}px, 0) rotate(${piece.rotation}deg)`,
-      zIndex: piece.locked ? 2 : state.selectedPieceId === piece.id ? 20 : 4 + (piece.id % 6),
+      zIndex: piece.locked ? 2 : hinted ? 60 : state.selectedPieceId === piece.id ? 20 : 4 + (piece.id % 6),
     };
+    const targetX = clamp(left + visualWidth / 2, 8, Math.max(8, container.width - 8));
+    const targetY = clamp(top + visualHeight / 2, 8, Math.max(8, container.height - 8));
+    const labelWidth = 96;
+    const labelHeight = 25;
+    const labelOnLeft = targetX > container.width * 0.46;
+    const labelLeft = clamp(labelOnLeft ? targetX - 118 : targetX + 20, 6, Math.max(6, container.width - labelWidth - 6));
+    const labelTop = clamp(targetY - 58, 6, Math.max(6, container.height - labelHeight - 6));
+    const startX = labelOnLeft ? labelLeft + labelWidth - 5 : labelLeft + 5;
+    const startY = labelTop + labelHeight * 0.72;
+    const controlX = (startX + targetX) / 2 + (labelOnLeft ? 10 : -10);
+    const controlY = Math.min(startY, targetY) - 13;
+    const directionX = targetX - controlX;
+    const directionY = targetY - controlY;
+    const directionLength = Math.max(1, Math.hypot(directionX, directionY));
+    const unitX = directionX / directionLength;
+    const unitY = directionY / directionLength;
+    const backX = targetX - unitX * 12;
+    const backY = targetY - unitY * 12;
+    const tipLeftX = backX - unitY * 4.5;
+    const tipLeftY = backY + unitX * 4.5;
+    const tipRightX = backX + unitY * 4.5;
+    const tipRightY = backY - unitX * 4.5;
+    const arrowCurve = `M ${startX} ${startY} Q ${controlX} ${controlY} ${targetX} ${targetY}`;
+    const arrowTip = `M ${tipLeftX} ${tipLeftY} L ${targetX} ${targetY} L ${tipRightX} ${tipRightY}`;
     return (
-      <PieceCanvas
-        key={piece.id}
-        piece={piece}
-        raster={raster}
-        style={style}
-        selected={state.selectedPieceId === piece.id}
-        onPointerDown={(event) => beginDrag(event, piece)}
-        onPointerMove={(event) => moveDrag(event, piece)}
-        onPointerUp={(event) => endDrag(event, piece)}
-      />
+      <Fragment key={piece.id}>
+        <PieceCanvas
+          piece={piece}
+          raster={raster}
+          style={style}
+          selected={state.selectedPieceId === piece.id}
+          hinted={hinted}
+          onPointerDown={(event) => beginDrag(event, piece)}
+          onPointerMove={(event) => moveDrag(event, piece)}
+          onPointerUp={(event) => endDrag(event, piece)}
+        />
+        {hinted && (
+          <div className="piece-hint-overlay" role="status" aria-live="polite">
+            <span className="piece-hint-label" style={{ left: labelLeft, top: labelTop }}>Pull this piece</span>
+            <svg viewBox={`0 0 ${container.width} ${container.height}`} preserveAspectRatio="none" aria-hidden="true">
+              <path className="hint-arrow-sketch" d={arrowCurve} />
+              <path className="hint-arrow-line" d={arrowCurve} />
+              <path className="hint-arrow-tip" d={arrowTip} />
+            </svg>
+          </div>
+        )}
+      </Fragment>
     );
   };
 

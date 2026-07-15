@@ -51,6 +51,7 @@ export type GameState = {
   elapsedMs: number;
   bestTime: number | null;
   hintVisible: boolean;
+  hintedPieceId: number | null;
   hintsRemaining: number;
   selectedPieceId: number | null;
   pauseReason: "manual" | "visibility" | null;

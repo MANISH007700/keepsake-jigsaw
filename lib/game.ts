@@ -13,6 +13,7 @@ export const initialGameState: GameState = {
   elapsedMs: 0,
   bestTime: null,
   hintVisible: false,
+  hintedPieceId: null,
   hintsRemaining: 3,
   selectedPieceId: null,
   pauseReason: null,
@@ -37,7 +38,7 @@ export type GameAction =
   | { type: "PAUSE"; reason: "manual" | "visibility"; elapsedMs: number }
   | { type: "RESUME" }
   | { type: "TICK"; elapsedMs: number }
-  | { type: "SHOW_HINT" }
+  | { type: "SHOW_HINT"; id: number }
   | { type: "HIDE_HINT" }
   | { type: "COMPLETE"; elapsedMs: number }
   | { type: "BACK_TO_PREVIEW" }
@@ -75,6 +76,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         cols: action.cols,
         pieces: action.pieces,
         elapsedMs: 0,
+        hintVisible: false,
+        hintedPieceId: null,
         hintsRemaining: 3,
         selectedPieceId: null,
         pauseReason: null,
@@ -101,7 +104,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             }
           : piece,
       );
-      return { ...state, pieces, selectedPieceId: null };
+      return {
+        ...state,
+        pieces,
+        selectedPieceId: null,
+        hintVisible: state.hintedPieceId === action.id ? false : state.hintVisible,
+        hintedPieceId: state.hintedPieceId === action.id ? null : state.hintedPieceId,
+      };
     }
     case "SELECT":
       return { ...state, selectedPieceId: action.id };
@@ -139,14 +148,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "TICK":
       return { ...state, elapsedMs: action.elapsedMs };
     case "SHOW_HINT":
-      if (state.difficulty === "easy" || (state.difficulty === "hard" && state.hintsRemaining <= 0)) return state;
+      if (state.difficulty === "hard" && state.hintsRemaining <= 0) return state;
       return {
         ...state,
         hintVisible: true,
+        hintedPieceId: action.id,
         hintsRemaining: state.difficulty === "hard" ? state.hintsRemaining - 1 : state.hintsRemaining,
       };
     case "HIDE_HINT":
-      return { ...state, hintVisible: false };
+      return { ...state, hintVisible: false, hintedPieceId: null };
     case "COMPLETE":
       return {
         ...state,
@@ -156,15 +166,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ? action.elapsedMs
           : state.bestTime,
         selectedPieceId: null,
+        hintVisible: false,
+        hintedPieceId: null,
       };
     case "BACK_TO_PREVIEW":
-      return { ...state, phase: "preview", pieces: [], elapsedMs: 0, selectedPieceId: null };
+      return { ...state, phase: "preview", pieces: [], elapsedMs: 0, selectedPieceId: null, hintVisible: false, hintedPieceId: null };
     case "REPLAY":
       return {
         ...state,
         phase: "playing",
         pieces: action.pieces,
         elapsedMs: 0,
+        hintVisible: false,
+        hintedPieceId: null,
         hintsRemaining: 3,
         selectedPieceId: null,
         pauseReason: null,
