@@ -8,7 +8,7 @@ export default function SiteFooter() {
       <div className="footer-credit">
         <small>Created by</small>
         <strong>Manish Sharma</strong>
-        <a href="https://github.com/MANISH007700" target="_blank" rel="noreferrer">View portfolio ↗</a>
+        <a href="https://manish-luci.netlify.app" target="_blank" rel="noreferrer">View portfolio ↗</a>
       </div>
       <span className="footer-privacy"><ShieldIcon /> Private by design · <Link href="/analytics">Analytics</Link></span>
     </footer>
