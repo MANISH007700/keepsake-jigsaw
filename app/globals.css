@@ -37,7 +37,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(255, 122, 89
 
 .app-shell { width: 100%; min-height: 100vh; overflow: hidden; }
 .site-header { height: 76px; padding: 0 clamp(20px, 4vw, 64px); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.065); }
-.wordmark { appearance: none; border: 0; background: none; display: flex; align-items: center; gap: 12px; padding: 8px 0; font: 600 22px/1 var(--serif); cursor: pointer; }
+.wordmark { appearance: none; border: 0; background: none; display: flex; align-items: center; gap: 12px; padding: 8px 0; color: var(--text); font: 600 22px/1 var(--serif); text-decoration: none; cursor: pointer; }
 .brand-mark { position: relative; width: 29px; height: 29px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; transform: rotate(-3deg); }
 .brand-mark span { background: var(--coral); border-radius: 4px 1px 1px 1px; }
 .brand-mark span:nth-child(2) { background: #ee9f58; border-radius: 1px 4px 1px 1px; }
@@ -179,8 +179,56 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(255, 122, 89
 .help-card > .button { width: 100%; }
 .modal-close { position: absolute; right: 15px; top: 13px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: rgba(255,255,255,.06); color: #b5bfcd; font-size: 22px; cursor: pointer; }
 
-footer { min-height: 68px; padding: 20px clamp(20px, 4vw, 64px); display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,.055); color: #6f7b8c; font: italic 13px var(--serif); }
-footer span:last-child { display: flex; align-items: center; gap: 7px; font: 11px var(--sans); }
+footer { min-height: 84px; padding: 16px clamp(20px, 4vw, 64px); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px; border-top: 1px solid rgba(255,255,255,.055); color: #6f7b8c; font: italic 13px var(--serif); }
+footer > span:last-child { display: flex; align-items: center; justify-self: end; gap: 7px; font: 11px var(--sans); }
+.footer-credit { display: flex; flex-direction: column; align-items: center; font: normal 11px var(--sans); }
+.footer-credit small { color: #6f7b8c; text-transform: uppercase; letter-spacing: .12em; }
+.footer-credit strong { margin: 2px 0; color: #cbd2dc; font: 500 14px var(--serif); }
+.footer-credit a { color: #e69a83; font-size: 10px; text-decoration: none; border-bottom: 1px solid rgba(230,154,131,.35); }
+.footer-credit a:hover { color: var(--coral); border-color: var(--coral); }
+.footer-privacy a { color: #8fa09f; text-decoration: none; border-bottom: 1px solid rgba(143,160,159,.3); }
+.footer-privacy a:hover { color: var(--teal); border-color: var(--teal); }
+
+.analytics-shell { min-height: 100vh; }
+.analytics-page { width: min(1180px, calc(100% - 40px)); min-height: calc(100vh - 160px); margin: 0 auto; padding: 64px 0 76px; }
+.analytics-heading { margin-bottom: 32px; display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; }
+.analytics-heading h1 { max-width: 720px; margin: 10px 0 12px; font: 500 clamp(38px, 5vw, 58px)/1.04 var(--serif); letter-spacing: -.035em; }
+.analytics-heading p { max-width: 700px; margin: 0; color: var(--muted); }
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.metric-card { min-width: 0; padding: 20px; border: 1px solid rgba(255,255,255,.075); border-radius: 12px; background: linear-gradient(145deg, rgba(37,46,63,.9), rgba(27,35,49,.92)); box-shadow: 0 14px 38px rgba(0,0,0,.12); }
+.metric-card.is-accent { border-color: rgba(62,198,168,.26); background: linear-gradient(145deg, rgba(38,69,69,.7), rgba(27,42,48,.95)); }
+.metric-card > span { display: block; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.metric-card strong { display: block; margin: 9px 0 2px; color: #fff; font: 500 32px/1 var(--serif); font-variant-numeric: tabular-nums; }
+.metric-card small { color: #748094; font-size: 10px; }
+.analytics-grid { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.analytics-card { min-height: 300px; padding: 22px; border: 1px solid rgba(255,255,255,.075); border-radius: 12px; background: rgba(29,37,52,.83); }
+.analytics-card-wide { grid-column: 1 / -1; }
+.analytics-card-heading { min-height: 45px; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.analytics-card-heading h2 { margin: 3px 0 0; font: 500 22px var(--serif); }
+.legend { display: flex; align-items: center; gap: 7px; color: #8490a1; font-size: 10px; }
+.legend i { width: 8px; height: 8px; border-radius: 2px; }
+.sessions { background: var(--coral); }
+.starts { background: var(--gold); }
+.completes { background: var(--teal); }
+.daily-chart { height: 210px; margin-top: 14px; padding-top: 10px; display: flex; align-items: stretch; gap: 7px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.day-column { min-width: 0; flex: 1; display: grid; grid-template-rows: 1fr 24px; gap: 7px; }
+.day-bars { display: flex; align-items: flex-end; justify-content: center; gap: 3px; }
+.day-bars i { width: min(8px, 28%); min-height: 2px; border-radius: 3px 3px 0 0; opacity: .9; }
+.day-column > span { overflow: hidden; color: #667285; font-size: 9px; text-align: center; text-overflow: clip; }
+.breakdown-list { margin-top: 20px; display: grid; gap: 18px; }
+.breakdown-row > div { margin-bottom: 6px; display: flex; justify-content: space-between; color: #adb7c5; font-size: 12px; text-transform: capitalize; }
+.breakdown-row strong { color: #fff; font-variant-numeric: tabular-nums; }
+.breakdown-row > i { height: 7px; overflow: hidden; display: block; border-radius: 10px; background: rgba(255,255,255,.06); }
+.breakdown-row > i span { height: 100%; min-width: 2px; display: block; border-radius: inherit; background: linear-gradient(90deg, var(--coral), #e9ad61); }
+.empty-breakdown { height: 190px; display: grid; place-items: center; color: #6f7b8c; font-size: 12px; text-align: center; }
+.metric-notes { margin-top: 12px; padding: 18px 20px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; border: 1px solid rgba(62,198,168,.16); border-radius: 12px; background: rgba(62,198,168,.045); }
+.metric-notes svg { width: 23px; fill: none; stroke: var(--teal); stroke-width: 1.7; }
+.metric-notes strong { color: #cce5de; font-size: 12px; }
+.metric-notes p { margin: 2px 0 0; color: #839b99; font-size: 11px; }
+.metric-notes > span { color: #6d7f81; font-size: 10px; white-space: nowrap; }
+.analytics-empty { min-height: 390px; padding: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed rgba(255,255,255,.13); border-radius: 14px; background: rgba(29,37,52,.65); text-align: center; }
+.analytics-empty h2 { margin: 0 0 8px; font: 500 28px var(--serif); }
+.analytics-empty p { max-width: 570px; margin: 0 0 22px; color: var(--muted); }
 .visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
 
 @media (max-width: 980px) {
@@ -221,6 +269,16 @@ footer span:last-child { display: flex; align-items: center; gap: 7px; font: 11p
   .tray-actions .button { min-height: 51px; padding: 6px; font-size: 10px; }
   .pause-cover { position: fixed; inset: 64px 0 0; border-radius: 0; }
   footer { flex-direction: column; gap: 8px; text-align: center; }
+  footer { display: flex; }
+  footer > span:last-child { justify-self: auto; }
+  .analytics-page { width: min(100% - 24px, 620px); padding: 38px 0 50px; }
+  .analytics-heading { align-items: flex-start; flex-direction: column; }
+  .metric-grid { grid-template-columns: 1fr 1fr; }
+  .analytics-grid { grid-template-columns: 1fr; }
+  .analytics-card-wide { grid-column: 1; }
+  .legend { display: none; }
+  .metric-notes { grid-template-columns: auto 1fr; }
+  .metric-notes > span { grid-column: 2; white-space: normal; }
 }
 
 @media (max-width: 410px) {
@@ -230,6 +288,7 @@ footer span:last-child { display: flex; align-items: center; gap: 7px; font: 11p
   .game-toolbar .progress-track { grid-column: 1; grid-row: 3; }
   .board-panel { min-height: 290px; }
   .difficulty-row small { display: none; }
+  .metric-grid { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

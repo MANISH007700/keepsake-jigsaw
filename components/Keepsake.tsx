@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import GameBoard from "./GameBoard";
 import { ImageCanvas } from "./CanvasViews";
 import { ShieldIcon, SparkleIcon, UploadIcon } from "./Icons";
+import SiteFooter from "./SiteFooter";
+import { trackAnalytics } from "@/lib/analytics";
 import { decodeImageFile, pieceResolutionWarning, validateImageFile } from "@/lib/image";
 import { formatTime, gameReducer, initialGameState } from "@/lib/game";
 import { createPieces, fitGrid, generateEdges, rasterizePieces } from "@/lib/puzzle";
@@ -54,6 +56,7 @@ export default function Keepsake() {
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       navigator.serviceWorker.register("/sw.js").catch(() => undefined);
     }
+    trackAnalytics({ event: "session_started" });
   }, []);
 
   useEffect(() => {
@@ -85,6 +88,10 @@ export default function Keepsake() {
     ) return;
     const elapsedMs = state.timerEnabled ? performance.now() - clockAnchorRef.current : state.elapsedMs;
     completionRecordedRef.current = true;
+    trackAnalytics({
+      event: "puzzle_completed",
+      elapsedSeconds: state.timerEnabled ? elapsedMs / 1000 : undefined,
+    });
     dispatch({ type: "COMPLETE", elapsedMs });
   }, [placedCount, state.elapsedMs, state.phase, state.pieces.length, state.timerEnabled]);
 
@@ -104,6 +111,7 @@ export default function Keepsake() {
       });
       setRasters(new Map());
       seedRef.current = hashSeed(`${file.name}:${file.size}:${nextAsset.width}x${nextAsset.height}`);
+      trackAnalytics({ event: "photo_selected" });
       dispatch({ type: "IMAGE_READY" });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "We could not read that photo. Please try another JPEG or PNG.");
@@ -136,6 +144,7 @@ export default function Keepsake() {
       completionRecordedRef.current = false;
       setSessionVersion((value) => value + 1);
       clockAnchorRef.current = performance.now();
+      trackAnalytics({ event: "puzzle_started", difficulty: state.difficulty, pieces: grid.count });
       dispatch({ type: "START", rows: grid.rows, cols: grid.cols, pieces });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The puzzle could not be cut. Try a smaller piece count.");
@@ -150,6 +159,7 @@ export default function Keepsake() {
 
   const showHint = () => {
     dispatch({ type: "SHOW_HINT" });
+    trackAnalytics({ event: "hint_used" });
     if (hintTimeoutRef.current) window.clearTimeout(hintTimeoutRef.current);
     hintTimeoutRef.current = window.setTimeout(() => dispatch({ type: "HIDE_HINT" }), 2000);
   };
@@ -171,6 +181,7 @@ export default function Keepsake() {
     completionRecordedRef.current = false;
     setSessionVersion((value) => value + 1);
     clockAnchorRef.current = performance.now();
+    trackAnalytics({ event: "puzzle_started", difficulty: state.difficulty, pieces: pieces.length });
     dispatch({ type: "REPLAY", pieces });
   };
 
@@ -294,7 +305,7 @@ export default function Keepsake() {
         </section>
       )}
 
-      <footer><span>Made for quiet moments.</span><span><ShieldIcon /> Private by design · works offline after your first visit</span></footer>
+      <SiteFooter />
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
     </main>
   );

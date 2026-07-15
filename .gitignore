@@ -10,6 +10,7 @@ coverage/
 
 # local tooling and hosting state
 .netlify/
+deno.lock
 .DS_Store
 *.log
 

@@ -6,6 +6,7 @@ import { shouldSnap } from "@/lib/puzzle";
 import { shuffle } from "@/lib/rng";
 import type { GameAction } from "@/lib/game";
 import type { GameState, ImageAsset, Piece, Point, RasterPiece, Zone } from "@/lib/types";
+import { trackAnalytics } from "@/lib/analytics";
 
 type Size = { width: number; height: number };
 type DragState = {
@@ -217,6 +218,7 @@ export default function GameBoard({
       if (shouldSnap(pixelPosition, target, Math.min(cellWidth, cellHeight), piece.rotation, state.difficulty)) {
         dispatch({ type: "MOVE", id: piece.id, zone: "board", position: { x: piece.col / state.cols, y: piece.row / state.rows } });
         dispatch({ type: "LOCK", id: piece.id });
+        trackAnalytics({ event: "piece_placed" });
         playSnap();
         return;
       }
