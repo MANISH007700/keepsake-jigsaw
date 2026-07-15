@@ -11,9 +11,11 @@ import { formatTime, gameReducer, initialGameState } from "@/lib/game";
 import { createPieces, fitGrid, generateEdges, rasterizePieces } from "@/lib/puzzle";
 import { hashSeed } from "@/lib/rng";
 import { soundEngine } from "@/lib/sound";
+import type { MusicTheme } from "@/lib/sound";
 import type { Difficulty, ImageAsset, RasterPiece } from "@/lib/types";
 
 const PRESETS = [12, 30, 50, 100];
+const MUSIC_LABELS: Record<MusicTheme, string> = { memory: "Memory Lane", homecoming: "Homecoming" };
 
 function disposeCanvas(canvas: HTMLCanvasElement) {
   canvas.width = 0;
@@ -32,6 +34,7 @@ export default function Keepsake() {
   const [draggingOver, setDraggingOver] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [musicTheme, setMusicTheme] = useState<MusicTheme>("memory");
   const [sessionVersion, setSessionVersion] = useState(0);
   const completionRecordedRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -77,6 +80,10 @@ export default function Keepsake() {
     if (soundEnabled && state.phase === "playing") soundEngine.startMusic();
     else soundEngine.stopMusic();
   }, [soundEnabled, state.phase]);
+
+  useEffect(() => {
+    soundEngine.setMusicTheme(musicTheme);
+  }, [musicTheme]);
 
   useEffect(() => {
     if (!state.timerEnabled || state.phase !== "playing") return;
@@ -194,7 +201,7 @@ export default function Keepsake() {
     dispatch({ type: "SHOW_HINT", id: target.id });
     trackAnalytics({ event: "hint_used" });
     if (hintTimeoutRef.current) window.clearTimeout(hintTimeoutRef.current);
-    hintTimeoutRef.current = window.setTimeout(() => dispatch({ type: "HIDE_HINT" }), 3400);
+    hintTimeoutRef.current = window.setTimeout(() => dispatch({ type: "HIDE_HINT" }), 6000);
   };
 
   const resetToEmpty = () => {
@@ -306,6 +313,7 @@ export default function Keepsake() {
                   <label className="timer-toggle"><span><strong>Full soundscape</strong><small>100% output · use your Mac volume</small></span><input type="checkbox" checked={soundEnabled} onChange={(event) => toggleSound(event.target.checked)} /><i /></label>
                   <label className={`timer-toggle rotation-toggle${state.difficulty === "hard" ? " is-required" : ""}`}><span><strong>Piece rotation</strong><small>{state.difficulty === "hard" ? "Required in Hard mode" : "Turn pieces in 90° steps"}</small></span><input type="checkbox" checked={state.rotationEnabled} disabled={state.difficulty === "hard"} onChange={(event) => dispatch({ type: "SET_ROTATION", enabled: event.target.checked })} /><i /></label>
                 </div>
+                <MusicMoodControl value={musicTheme} onChange={setMusicTheme} />
                 {grid.count !== state.requestedCount && <p className="fit-note">Closest fit: <strong>{grid.count} pieces</strong> ({grid.cols} × {grid.rows})</p>}
                 {resolutionWarning && <p className="warning-note">{resolutionWarning}</p>}
                 <button className="button button-primary button-large" onClick={() => void startPuzzle()} disabled={state.phase === "cutting"}>
@@ -330,6 +338,9 @@ export default function Keepsake() {
               {state.timerEnabled && <span className="timer-display" aria-label={`Elapsed time ${formatTime(state.elapsedMs)}`}>{formatTime(state.elapsedMs)}</span>}
               <button className="button button-quiet sound-button" onClick={() => toggleSound(!soundEnabled)} aria-pressed={soundEnabled} aria-label={soundEnabled ? "Turn sound off" : "Turn sound on"}>
                 {soundEnabled ? "Sound on" : "Sound off"}
+              </button>
+              <button className="button button-quiet" onClick={() => setMusicTheme((theme) => theme === "memory" ? "homecoming" : "memory")}>
+                Music · {MUSIC_LABELS[musicTheme]}
               </button>
               <button className="button button-quiet" onClick={showHint} disabled={!trayHintAvailable || (state.difficulty === "hard" && state.hintsRemaining === 0)}>
                 Hint{state.difficulty === "hard" ? ` · ${state.hintsRemaining}` : ""}
@@ -394,6 +405,22 @@ function DifficultyControl({ value, onChange }: { value: Difficulty; onChange: (
   );
 }
 
+function MusicMoodControl({ value, onChange }: { value: MusicTheme; onChange: (value: MusicTheme) => void }) {
+  return (
+    <fieldset className="control-group music-mood-control">
+      <legend><span>Music mood</span><strong>{MUSIC_LABELS[value]}</strong></legend>
+      <div className="music-mood-row">
+        {(["memory", "homecoming"] as MusicTheme[]).map((theme) => (
+          <button key={theme} type="button" className={value === theme ? "is-active" : ""} onClick={() => onChange(theme)}>
+            <strong>{MUSIC_LABELS[theme]}</strong>
+            <small>{theme === "memory" ? "Tender piano & violin" : "Hopeful, warm homecoming"}</small>
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
 function CompletionCard({ elapsedMs, timerEnabled, bestTime, pieceCount, onReplay, onNewCount, onNewPhoto }: {
   elapsedMs: number; timerEnabled: boolean; bestTime: number | null; pieceCount: number;
   onReplay: () => void; onNewCount: () => void; onNewPhoto: () => void;
@@ -425,7 +452,9 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           <li><strong>Choose your challenge.</strong><span>Pick 8–150 pieces, a difficulty, timer, and optional piece rotation. Hard mode requires rotation.</span></li>
           <li><strong>Rebuild it.</strong><span>Drag pieces from the tray. A close match clicks into place.</span></li>
           <li><strong>Arrange your tray.</strong><span>Use Pile scramble for a tactile heap or Neat spread to see every piece at once—no scrolling.</span></li>
+          <li><strong>Follow a hint.</strong><span>“Pull this piece” marks the piece, while “Place it here” pulses over its exact home on the board.</span></li>
           <li><strong>Listen for the fit.</strong><span>A soft snap confirms success; a low tap means try another spot. Sound can be switched off anytime.</span></li>
+          <li><strong>Choose the mood.</strong><span>Switch between Memory Lane and Homecoming before or during the puzzle.</span></li>
           <li><strong>Rotate when you want.</strong><span>Enable rotation in setup or during play, then select a piece and use Rotate, tap it, or press R.</span></li>
         </ol>
         <button className="button button-primary" onClick={onClose}>Let’s make a puzzle</button>

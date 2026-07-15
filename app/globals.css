@@ -97,8 +97,8 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(255, 122, 89
 .control-group legend { width: 100%; margin-bottom: 8px; display: flex; justify-content: space-between; color: #b8c0cc; font-size: 12px; font-weight: 700; }
 .control-group legend strong { color: var(--coral); }
 .preset-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.preset-row button, .difficulty-row button { appearance: none; min-height: 36px; border: 1px solid rgba(255,255,255,.09); border-radius: 7px; background: rgba(255,255,255,.035); color: #b8c1ce; cursor: pointer; }
-.preset-row button.is-active, .difficulty-row button.is-active { border-color: rgba(255,122,89,.7); background: rgba(255,122,89,.12); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,122,89,.15); }
+.preset-row button, .difficulty-row button, .music-mood-row button { appearance: none; min-height: 36px; border: 1px solid rgba(255,255,255,.09); border-radius: 7px; background: rgba(255,255,255,.035); color: #b8c1ce; cursor: pointer; }
+.preset-row button.is-active, .difficulty-row button.is-active, .music-mood-row button.is-active { border-color: rgba(255,122,89,.7); background: rgba(255,122,89,.12); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,122,89,.15); }
 .range { width: 100%; height: 4px; margin: 14px 0 4px; accent-color: var(--coral); cursor: pointer; }
 .range-labels { display: flex; justify-content: space-between; color: #707d8f; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
 .difficulty-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
@@ -107,6 +107,13 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(255, 122, 89
 .difficulty-row strong { font-size: 11px; }
 .difficulty-row small { margin-top: 2px; color: #778396; font-size: 8px; }
 .difficulty-row button.is-active small { color: #dea18e; }
+.music-mood-control { margin-top: 10px; }
+.music-mood-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.music-mood-row button { min-height: 45px; padding: 6px 9px; text-align: left; }
+.music-mood-row strong, .music-mood-row small { display: block; }
+.music-mood-row strong { font-size: 10px; }
+.music-mood-row small { margin-top: 2px; color: #778396; font-size: 8px; }
+.music-mood-row button.is-active small { color: #dea18e; }
 .setup-toggles { margin: 14px 1px; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .timer-toggle { min-width: 0; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid rgba(255,255,255,.07); border-radius: 8px; cursor: pointer; }
 .timer-toggle strong, .timer-toggle small { display: block; }
@@ -163,8 +170,14 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(255, 122, 89
 .hint-arrow-sketch { stroke: rgba(24,12,8,.7); stroke-width: 5; transform: translate(1px, 1px); }
 .hint-arrow-line, .hint-arrow-tip { stroke: #ffd175; stroke-width: 2.2; }
 .hint-arrow-line { stroke-dasharray: 3 1.5; }
+.board-hint-target { position: absolute; z-index: 70; border: 2px dashed rgba(255,122,89,.95); border-radius: 5px; background: rgba(255,209,117,.26); box-shadow: inset 0 0 0 2px rgba(255,255,255,.42), 0 0 10px rgba(255,209,117,.95), 0 0 25px rgba(255,122,89,.72); pointer-events: none; animation: board-hint-pulse 850ms ease-in-out infinite alternate; }
+.board-hint-target > span { position: absolute; left: 50%; bottom: calc(100% + 7px); min-width: 84px; padding: 5px 8px; border: 1px solid rgba(255,122,89,.65); border-radius: 12px 14px 11px 15px; background: rgba(31,24,22,.92); color: #ffe1a5; font: italic 600 10px/1.25 var(--serif); text-align: center; white-space: nowrap; transform: translateX(-50%) rotate(1.5deg); }
+.board-hint-target > span.is-below { top: calc(100% + 7px); bottom: auto; }
+.board-hint-target > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; fill: none; stroke: #d9513e; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 0 rgba(255,255,255,.6)); }
+.board-hint-target > span.is-below + svg { transform: rotate(180deg); }
 @keyframes hinted-piece { to { filter: brightness(1.52) drop-shadow(0 0 10px rgba(255,225,151,1)) drop-shadow(0 0 23px rgba(255,122,89,.88)); } }
 @keyframes hint-arrow-breathe { to { transform: translateY(2px) rotate(.45deg); } }
+@keyframes board-hint-pulse { to { background: rgba(255,209,117,.46); box-shadow: inset 0 0 0 2px rgba(255,255,255,.62), 0 0 15px rgba(255,225,151,1), 0 0 32px rgba(255,122,89,.88); } }
 .pause-cover { position: absolute; inset: 0; z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 14px; background: rgba(13,18,27,.97); backdrop-filter: blur(16px); text-align: center; }
 .pause-cover h2 { margin: 8px 0; font: 500 34px var(--serif); }
 .pause-cover p { max-width: 390px; margin: 0 0 22px; color: var(--muted); }

@@ -171,7 +171,6 @@ export default function GameBoard({
     element.style.zIndex = "1000";
     element.style.transform = `translate3d(${event.clientX - offsetCoreX - displayPadding}px, ${event.clientY - offsetCoreY - displayPadding}px, 0) rotate(${piece.rotation}deg) scale(1.055)`;
     dispatch({ type: "SELECT", id: piece.id });
-    if (state.hintedPieceId === piece.id) dispatch({ type: "HIDE_HINT" });
     soundEngine.playPickup();
     event.preventDefault();
   };
@@ -251,12 +250,13 @@ export default function GameBoard({
     const scaledPadding = displayPadding * scale;
     const left = piece.position.x * container.width - scaledPadding;
     const top = piece.position.y * container.height - scaledPadding;
-    const hinted = state.hintVisible && state.hintedPieceId === piece.id && piece.zone === "tray";
+    const isHintedPiece = state.hintVisible && state.hintedPieceId === piece.id;
+    const showTrayHint = isHintedPiece && piece.zone === "tray";
     const style: React.CSSProperties = {
       width: visualWidth,
       height: visualHeight,
       transform: `translate3d(${left}px, ${top}px, 0) rotate(${piece.rotation}deg)`,
-      zIndex: piece.locked ? 2 : hinted ? 60 : state.selectedPieceId === piece.id ? 20 : 4 + (piece.id % 6),
+      zIndex: piece.locked ? 2 : isHintedPiece ? 60 : state.selectedPieceId === piece.id ? 20 : 4 + (piece.id % 6),
     };
     const targetX = clamp(left + visualWidth / 2, 8, Math.max(8, container.width - 8));
     const targetY = clamp(top + visualHeight / 2, 8, Math.max(8, container.height - 8));
@@ -289,12 +289,12 @@ export default function GameBoard({
           raster={raster}
           style={style}
           selected={state.selectedPieceId === piece.id}
-          hinted={hinted}
+          hinted={isHintedPiece}
           onPointerDown={(event) => beginDrag(event, piece)}
           onPointerMove={(event) => moveDrag(event, piece)}
           onPointerUp={(event) => endDrag(event, piece)}
         />
-        {hinted && (
+        {showTrayHint && (
           <div className="piece-hint-overlay" role="status" aria-live="polite">
             <span className="piece-hint-label" style={{ left: labelLeft, top: labelTop }}>Pull this piece</span>
             <svg viewBox={`0 0 ${container.width} ${container.height}`} preserveAspectRatio="none" aria-hidden="true">
@@ -310,6 +310,10 @@ export default function GameBoard({
 
   const trayPieces = useMemo(() => state.pieces.filter((piece) => piece.zone === "tray"), [state.pieces]);
   const boardPieces = useMemo(() => state.pieces.filter((piece) => piece.zone === "board"), [state.pieces]);
+  const hintedPiece = useMemo(
+    () => state.hintVisible ? state.pieces.find((piece) => piece.id === state.hintedPieceId && !piece.locked) ?? null : null,
+    [state.hintVisible, state.hintedPieceId, state.pieces],
+  );
   const showGhost = state.difficulty === "easy" || state.hintVisible;
   const showSlots = state.difficulty !== "hard";
 
@@ -342,6 +346,26 @@ export default function GameBoard({
         <div className="board-wrap" ref={boardWrapRef}>
           <div ref={boardRef} className="board-shell" style={{ aspectRatio: `${asset.width} / ${asset.height}`, width: fittedBoardWidth }}>
             <BoardGuides asset={asset} rows={state.rows} cols={state.cols} showGhost={showGhost} showSlots={showSlots} />
+            {hintedPiece && (
+              <div
+                className="board-hint-target"
+                style={{
+                  left: hintedPiece.col * cellWidth,
+                  top: hintedPiece.row * cellHeight,
+                  width: cellWidth,
+                  height: cellHeight,
+                }}
+                role="status"
+                aria-live="polite"
+                aria-label={`Place the highlighted piece in row ${hintedPiece.row + 1}, column ${hintedPiece.col + 1}`}
+              >
+                <span className={hintedPiece.row === 0 ? "is-below" : ""}>Place it here</span>
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <path d="M 22 16 Q 38 23 50 48" />
+                  <path d="M 38 38 L 50 48 L 48 31" />
+                </svg>
+              </div>
+            )}
             <div className="piece-layer board-piece-layer">
               {boardPieces.map((piece) => renderPiece(piece, boardSize))}
             </div>

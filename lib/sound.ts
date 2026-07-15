@@ -15,6 +15,30 @@ const MEMORY_CHORDS = [
   { chord: [98, 130.81, 146.83, 196], melody: [293.66, 392] }, // Gsus4
 ];
 
+const HOMECOMING_CHORDS = [
+  { chord: [146.83, 185, 220, 277.18], melody: [587.33, 554.37] }, // Dmaj7
+  { chord: [138.59, 164.81, 220, 246.94], melody: [493.88, 440] }, // Aadd9/C#
+  { chord: [123.47, 146.83, 185, 220], melody: [440, 369.99] }, // Bm7
+  { chord: [110, 138.59, 164.81, 185], melody: [369.99, 440] }, // F#m7/A
+  { chord: [98, 123.47, 146.83, 185], melody: [493.88, 440] }, // Gmaj7
+  { chord: [92.5, 110, 146.83, 185], melody: [369.99, 329.63] }, // D/F#
+  { chord: [82.41, 98, 123.47, 146.83], melody: [392, 369.99] }, // Em7
+  { chord: [110, 146.83, 164.81, 220], melody: [329.63, 440] }, // Asus4
+];
+
+export type MusicTheme = "memory" | "homecoming";
+
+const MUSIC_THEMES = {
+  memory: { chords: MEMORY_CHORDS, interval: 5400, arpeggio: 0.14, melodyDelay: 1.15, melodyStep: 1.62 },
+  homecoming: { chords: HOMECOMING_CHORDS, interval: 6200, arpeggio: 0.22, melodyDelay: 0.88, melodyStep: 2.05 },
+} satisfies Record<MusicTheme, {
+  chords: typeof MEMORY_CHORDS;
+  interval: number;
+  arpeggio: number;
+  melodyDelay: number;
+  melodyStep: number;
+}>;
+
 class KeepsakeSoundEngine {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -23,6 +47,7 @@ class KeepsakeSoundEngine {
   private musicTimer: number | null = null;
   private musicStep = 0;
   private musicNodes = new Set<OscillatorNode>();
+  private musicTheme: MusicTheme = "memory";
   private enabled = true;
 
   setEnabled(enabled: boolean) {
@@ -36,6 +61,15 @@ class KeepsakeSoundEngine {
     if (context?.state === "suspended") void context.resume().catch(() => undefined);
   }
 
+  setMusicTheme(theme: MusicTheme) {
+    if (theme === this.musicTheme) return;
+    const wasPlaying = this.musicTimer !== null;
+    if (wasPlaying) this.stopMusic();
+    this.musicTheme = theme;
+    this.musicStep = 0;
+    if (wasPlaying) this.startMusic();
+  }
+
   startMusic() {
     if (!this.enabled || this.musicTimer !== null) return;
     const context = this.getContext();
@@ -47,7 +81,7 @@ class KeepsakeSoundEngine {
     this.musicGain.gain.exponentialRampToValueAtTime(0.5, context.currentTime + 1.2);
     this.musicGain.connect(this.master!);
     this.scheduleMusicPhrase();
-    this.musicTimer = window.setInterval(() => this.scheduleMusicPhrase(), 5400);
+    this.musicTimer = window.setInterval(() => this.scheduleMusicPhrase(), MUSIC_THEMES[this.musicTheme].interval);
   }
 
   stopMusic() {
@@ -185,20 +219,22 @@ class KeepsakeSoundEngine {
     const destination = this.musicGain;
     if (!context || !destination || !this.enabled) return;
     const start = context.currentTime + 0.06;
-    const phrase = MEMORY_CHORDS[this.musicStep % MEMORY_CHORDS.length];
+    const theme = MUSIC_THEMES[this.musicTheme];
+    const phrase = theme.chords[this.musicStep % theme.chords.length];
+    const phraseDuration = theme.interval / 1000;
 
     phrase.chord.forEach((frequency, index) => {
-      this.musicTone(frequency, start + index * 0.14, 4.75 - index * 0.08, index === 0 ? 0.2 : 0.125, index === 0 ? "sine" : "triangle", "piano");
-      if (index > 0) this.musicTone(frequency * 2, start + index * 0.14 + 0.018, 2.6, 0.035, "sine", "piano");
+      this.musicTone(frequency, start + index * theme.arpeggio, phraseDuration - 0.65 - index * 0.08, index === 0 ? 0.2 : 0.125, index === 0 ? "sine" : "triangle", "piano");
+      if (index > 0) this.musicTone(frequency * 2, start + index * theme.arpeggio + 0.018, phraseDuration * 0.48, 0.035, "sine", "piano");
     });
     phrase.melody.forEach((frequency, index) => {
-      const noteStart = start + 1.15 + index * 1.62;
-      this.musicTone(frequency, noteStart, 1.85, 0.17, "triangle", "piano");
-      this.musicTone(frequency * 2, noteStart + 0.012, 1.15, 0.032, "sine", "piano");
+      const noteStart = start + theme.melodyDelay + index * theme.melodyStep;
+      this.musicTone(frequency, noteStart, this.musicTheme === "homecoming" ? 2.25 : 1.85, 0.17, "triangle", "piano");
+      this.musicTone(frequency * 2, noteStart + 0.012, 1.2, 0.032, "sine", "piano");
     });
-    this.musicTone(phrase.melody[0], start + 0.72, 3.45, 0.055, "sawtooth", "violin");
-    this.musicTone(phrase.melody[1], start + 3.12, 2.05, 0.048, "sawtooth", "violin");
-    this.musicStep = (this.musicStep + 1) % MEMORY_CHORDS.length;
+    this.musicTone(phrase.melody[0], start + 0.72, phraseDuration * 0.64, 0.055, "sawtooth", "violin");
+    this.musicTone(phrase.melody[1], start + phraseDuration * 0.58, phraseDuration * 0.36, 0.048, "sawtooth", "violin");
+    this.musicStep = (this.musicStep + 1) % theme.chords.length;
   }
 
   private musicTone(

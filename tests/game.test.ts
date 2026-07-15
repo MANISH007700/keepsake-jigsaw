@@ -45,4 +45,15 @@ describe("piece hints", () => {
     expect(lastHint.hintsRemaining).toBe(0);
     expect(gameReducer(lastHint, { type: "SHOW_HINT", id: piece.id })).toBe(lastHint);
   });
+
+  it("keeps the destination visible while dragging and clears it after placement", () => {
+    const playing = { ...initialGameState, phase: "playing" as const, rows: 1, cols: 1, pieces: [piece] };
+    const hinted = gameReducer(playing, { type: "SHOW_HINT", id: piece.id });
+    const moved = gameReducer(hinted, { type: "MOVE", id: piece.id, zone: "board", position: { x: 0.3, y: 0.3 } });
+    expect(moved.hintVisible).toBe(true);
+    expect(moved.hintedPieceId).toBe(piece.id);
+    const locked = gameReducer(moved, { type: "LOCK", id: piece.id });
+    expect(locked.hintVisible).toBe(false);
+    expect(locked.hintedPieceId).toBeNull();
+  });
 });
