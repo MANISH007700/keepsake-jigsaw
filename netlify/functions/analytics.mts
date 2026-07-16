@@ -3,6 +3,7 @@ import {
   applyAnalyticsEvent,
   emptyAnalytics,
   isAnalyticsEvent,
+  normalizeAnalytics,
   type AnalyticsTotals,
 } from "../../lib/analytics-model";
 
@@ -26,8 +27,8 @@ async function readTotals() {
 async function recordEvent(event: Parameters<typeof applyAnalyticsEvent>[1]) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const { store, entry } = await readTotals();
-    const current = entry?.data as AnalyticsTotals | undefined;
-    const next = applyAnalyticsEvent(current ?? emptyAnalytics(), event);
+    const current = normalizeAnalytics(entry?.data as AnalyticsTotals | undefined);
+    const next = applyAnalyticsEvent(current, event);
     const result = await store.setJSON(
       TOTALS_KEY,
       next,
@@ -41,7 +42,7 @@ async function recordEvent(event: Parameters<typeof applyAnalyticsEvent>[1]) {
 const handler = async (request: Request) => {
   if (request.method === "GET") {
     const { entry } = await readTotals();
-    return new Response(JSON.stringify(entry?.data ?? emptyAnalytics()), { headers: responseHeaders });
+    return new Response(JSON.stringify(normalizeAnalytics(entry?.data ?? emptyAnalytics())), { headers: responseHeaders });
   }
 
   if (request.method !== "POST") {

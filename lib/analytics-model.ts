@@ -2,6 +2,8 @@ import type { Difficulty } from "./types";
 
 export type AnalyticsEvent =
   | { event: "session_started" }
+  | { event: "engaged_5m" }
+  | { event: "clap" }
   | { event: "photo_selected" }
   | { event: "puzzle_started"; difficulty: Difficulty; pieces: number }
   | { event: "piece_placed" }
@@ -10,14 +12,18 @@ export type AnalyticsEvent =
 
 export type DailyAnalytics = {
   sessions: number;
+  engaged: number;
+  claps: number;
   started: number;
   completed: number;
 };
 
 export type AnalyticsTotals = {
-  version: 1;
+  version: 2;
   updatedAt: string | null;
   sessions: number;
+  engagedFiveMinutes: number;
+  claps: number;
   photosSelected: number;
   puzzlesStarted: number;
   piecesPlaced: number;
@@ -32,9 +38,11 @@ export type AnalyticsTotals = {
 
 export function emptyAnalytics(): AnalyticsTotals {
   return {
-    version: 1,
+    version: 2,
     updatedAt: null,
     sessions: 0,
+    engagedFiveMinutes: 0,
+    claps: 0,
     photosSelected: 0,
     puzzlesStarted: 0,
     piecesPlaced: 0,
@@ -48,12 +56,61 @@ export function emptyAnalytics(): AnalyticsTotals {
   };
 }
 
+function safeCount(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+export function normalizeAnalytics(value: unknown): AnalyticsTotals {
+  const empty = emptyAnalytics();
+  if (!value || typeof value !== "object") return empty;
+  const source = value as Partial<AnalyticsTotals>;
+  const sourceDifficulty = (source.difficulty ?? {}) as Partial<Record<Difficulty, number>>;
+  const sourcePieceCounts = source.pieceCounts && typeof source.pieceCounts === "object" ? source.pieceCounts : {};
+  const sourceDaily = source.daily && typeof source.daily === "object" ? source.daily : {};
+  return {
+    ...empty,
+    updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : null,
+    sessions: safeCount(source.sessions),
+    engagedFiveMinutes: safeCount(source.engagedFiveMinutes),
+    claps: safeCount(source.claps),
+    photosSelected: safeCount(source.photosSelected),
+    puzzlesStarted: safeCount(source.puzzlesStarted),
+    piecesPlaced: safeCount(source.piecesPlaced),
+    hintsUsed: safeCount(source.hintsUsed),
+    puzzlesCompleted: safeCount(source.puzzlesCompleted),
+    timedCompletions: safeCount(source.timedCompletions),
+    completionSecondsTotal: safeCount(source.completionSecondsTotal),
+    difficulty: {
+      easy: safeCount(sourceDifficulty.easy),
+      medium: safeCount(sourceDifficulty.medium),
+      hard: safeCount(sourceDifficulty.hard),
+    },
+    pieceCounts: Object.fromEntries(
+      Object.entries(sourcePieceCounts).map(([key, count]) => [key, safeCount(count)]),
+    ),
+    daily: Object.fromEntries(
+      Object.entries(sourceDaily).map(([day, value]) => {
+        const counts = value && typeof value === "object" ? value as Partial<DailyAnalytics> : {};
+        return [day, {
+          sessions: safeCount(counts.sessions),
+          engaged: safeCount(counts.engaged),
+          claps: safeCount(counts.claps),
+          started: safeCount(counts.started),
+          completed: safeCount(counts.completed),
+        }];
+      }),
+    ),
+  };
+}
+
 export function isAnalyticsEvent(value: unknown): value is AnalyticsEvent {
   if (!value || typeof value !== "object" || !("event" in value)) return false;
   const candidate = value as Record<string, unknown>;
   const hasOnly = (...keys: string[]) => Object.keys(candidate).every((key) => keys.includes(key));
   switch (candidate.event) {
     case "session_started":
+    case "engaged_5m":
+    case "clap":
     case "photo_selected":
     case "piece_placed":
     case "hint_used":
@@ -82,20 +139,29 @@ export function applyAnalyticsEvent(
   event: AnalyticsEvent,
   now = new Date(),
 ): AnalyticsTotals {
+  const normalized = normalizeAnalytics(current);
   const day = now.toISOString().slice(0, 10);
   const next: AnalyticsTotals = {
-    ...current,
+    ...normalized,
     updatedAt: now.toISOString(),
-    difficulty: { ...current.difficulty },
-    pieceCounts: { ...current.pieceCounts },
-    daily: { ...current.daily },
+    difficulty: { ...normalized.difficulty },
+    pieceCounts: { ...normalized.pieceCounts },
+    daily: { ...normalized.daily },
   };
-  const daily = { ...(next.daily[day] ?? { sessions: 0, started: 0, completed: 0 }) };
+  const daily = { ...(next.daily[day] ?? { sessions: 0, engaged: 0, claps: 0, started: 0, completed: 0 }) };
 
   switch (event.event) {
     case "session_started":
       next.sessions += 1;
       daily.sessions += 1;
+      break;
+    case "engaged_5m":
+      next.engagedFiveMinutes += 1;
+      daily.engaged += 1;
+      break;
+    case "clap":
+      next.claps += 1;
+      daily.claps += 1;
       break;
     case "photo_selected":
       next.photosSelected += 1;

@@ -67,6 +67,30 @@ export default function Keepsake() {
   }, []);
 
   useEffect(() => {
+    let activeMilliseconds = 0;
+    let lastChecked = performance.now();
+    let wasVisible = !document.hidden;
+    let recorded = false;
+    const updateEngagement = () => {
+      const now = performance.now();
+      if (wasVisible) activeMilliseconds += now - lastChecked;
+      lastChecked = now;
+      wasVisible = !document.hidden;
+      if (!recorded && activeMilliseconds >= 300_000) {
+        recorded = true;
+        trackAnalytics({ event: "engaged_5m" });
+      }
+    };
+    const timer = window.setInterval(updateEngagement, 1000);
+    document.addEventListener("visibilitychange", updateEngagement);
+    return () => {
+      updateEngagement();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", updateEngagement);
+    };
+  }, []);
+
+  useEffect(() => {
     if (state.phase !== "playing" || !state.timerEnabled) return;
     clockAnchorRef.current = performance.now() - elapsedRef.current;
     const timer = window.setInterval(() => {

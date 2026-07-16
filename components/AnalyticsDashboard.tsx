@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import SiteFooter from "./SiteFooter";
 import { ShieldIcon } from "./Icons";
-import { emptyAnalytics, type AnalyticsTotals } from "@/lib/analytics-model";
+import { emptyAnalytics, normalizeAnalytics, type AnalyticsTotals } from "@/lib/analytics-model";
 
 const ENDPOINT = "/.netlify/functions/analytics";
 
@@ -23,7 +23,7 @@ export default function AnalyticsDashboard() {
     try {
       const response = await fetch(ENDPOINT, { cache: "no-store" });
       if (!response.ok) throw new Error("Analytics endpoint unavailable");
-      setData(await response.json() as AnalyticsTotals);
+      setData(normalizeAnalytics(await response.json()));
       setStatus("ready");
     } catch {
       setStatus("error");
@@ -39,7 +39,7 @@ export default function AnalyticsDashboard() {
       })
       .then((analytics) => {
         if (!active) return;
-        setData(analytics);
+        setData(normalizeAnalytics(analytics));
         setStatus("ready");
       })
       .catch(() => { if (active) setStatus("error"); });
@@ -48,6 +48,9 @@ export default function AnalyticsDashboard() {
 
   const completionRate = data.puzzlesStarted > 0
     ? (data.puzzlesCompleted / data.puzzlesStarted) * 100
+    : 0;
+  const fiveMinuteRate = data.sessions > 0
+    ? (data.engagedFiveMinutes / data.sessions) * 100
     : 0;
   const averageTime = data.timedCompletions > 0
     ? data.completionSecondsTotal / data.timedCompletions
@@ -89,23 +92,25 @@ export default function AnalyticsDashboard() {
         ) : (
           <>
             <div className="metric-grid" aria-busy={status === "loading"}>
-              <MetricCard label="Sessions" value={data.sessions} note="Page sessions, not unique people" />
+              <MetricCard label="Visits" value={data.sessions} note="Page visits, not unique people" />
+              <MetricCard label="Stayed 5+ min" value={data.engagedFiveMinutes} note={`${fiveMinuteRate.toFixed(1)}% of visits · active time`} accent />
+              <MetricCard label="Claps" value={data.claps} note="One per browser session" />
               <MetricCard label="Puzzles started" value={data.puzzlesStarted} note="Includes re-scrambles" />
               <MetricCard label="Puzzles completed" value={data.puzzlesCompleted} note="Last piece successfully placed" />
-              <MetricCard label="Completion rate" value={`${completionRate.toFixed(1)}%`} note="Completed ÷ started" accent />
+              <MetricCard label="Completion rate" value={`${completionRate.toFixed(1)}%`} note="Completed ÷ started" />
               <MetricCard label="Photos selected" value={data.photosSelected} note="Only the action is counted" />
               <MetricCard label="Pieces placed" value={data.piecesPlaced} note="Successful snaps" />
-              <MetricCard label="Hints used" value={data.hintsUsed} note="Medium and Hard hints" />
+              <MetricCard label="Hints used" value={data.hintsUsed} note="Across all difficulty levels" />
               <MetricCard label="Average solve time" value={data.timedCompletions ? formatDuration(averageTime) : "—"} note="Timed completions only" />
             </div>
 
             <div className="analytics-grid">
               <section className="analytics-card analytics-card-wide">
-                <div className="analytics-card-heading"><div><span className="eyebrow">Last 14 active days</span><h2>Play activity</h2></div><span className="legend"><i className="sessions" /> Sessions <i className="starts" /> Starts <i className="completes" /> Completed</span></div>
+                <div className="analytics-card-heading"><div><span className="eyebrow">Last 14 active days</span><h2>Play activity</h2></div><span className="legend"><i className="sessions" /> Visits <i className="starts" /> Starts <i className="completes" /> Completed</span></div>
                 {daily.length ? (
                   <div className="daily-chart">
                     {daily.map(([date, values]) => (
-                      <div className="day-column" key={date} title={`${date}: ${values.sessions} sessions, ${values.started} starts, ${values.completed} completions`}>
+                      <div className="day-column" key={date} title={`${date}: ${values.sessions} visits, ${values.started} starts, ${values.completed} completions`}>
                         <div className="day-bars"><i className="sessions" style={{ height: `${(values.sessions / dailyMax) * 100}%` }} /><i className="starts" style={{ height: `${(values.started / dailyMax) * 100}%` }} /><i className="completes" style={{ height: `${(values.completed / dailyMax) * 100}%` }} /></div>
                         <span>{date.slice(5)}</span>
                       </div>
