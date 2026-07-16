@@ -26,12 +26,13 @@ const HOMECOMING_CHORDS = [
   { chord: [110, 146.83, 164.81, 220], melody: [329.63, 440] }, // Asus4
 ];
 
-export type MusicTheme = "memory" | "homecoming";
+export type MusicTheme = "sparkle" | "homecoming" | "memory";
+type SynthMusicTheme = Exclude<MusicTheme, "sparkle">;
 
 const MUSIC_THEMES = {
   memory: { chords: MEMORY_CHORDS, interval: 5400, arpeggio: 0.14, melodyDelay: 1.15, melodyStep: 1.62 },
   homecoming: { chords: HOMECOMING_CHORDS, interval: 6200, arpeggio: 0.22, melodyDelay: 0.88, melodyStep: 2.05 },
-} satisfies Record<MusicTheme, {
+} satisfies Record<SynthMusicTheme, {
   chords: typeof MEMORY_CHORDS;
   interval: number;
   arpeggio: number;
@@ -47,7 +48,7 @@ class KeepsakeSoundEngine {
   private musicTimer: number | null = null;
   private musicStep = 0;
   private musicNodes = new Set<OscillatorNode>();
-  private musicTheme: MusicTheme = "memory";
+  private musicTheme: MusicTheme = "sparkle";
   private enabled = true;
 
   setEnabled(enabled: boolean) {
@@ -71,14 +72,14 @@ class KeepsakeSoundEngine {
   }
 
   startMusic() {
-    if (!this.enabled || this.musicTimer !== null) return;
+    if (!this.enabled || this.musicTimer !== null || this.musicTheme === "sparkle") return;
     const context = this.getContext();
     if (!context) return;
     if (context.state === "suspended") void context.resume().catch(() => undefined);
 
     this.musicGain = context.createGain();
     this.musicGain.gain.setValueAtTime(0.0001, context.currentTime);
-    this.musicGain.gain.exponentialRampToValueAtTime(0.5, context.currentTime + 1.2);
+    this.musicGain.gain.exponentialRampToValueAtTime(1, context.currentTime + 1.2);
     this.musicGain.connect(this.master!);
     this.scheduleMusicPhrase();
     this.musicTimer = window.setInterval(() => this.scheduleMusicPhrase(), MUSIC_THEMES[this.musicTheme].interval);
@@ -217,7 +218,7 @@ class KeepsakeSoundEngine {
   private scheduleMusicPhrase() {
     const context = this.context;
     const destination = this.musicGain;
-    if (!context || !destination || !this.enabled) return;
+    if (!context || !destination || !this.enabled || this.musicTheme === "sparkle") return;
     const start = context.currentTime + 0.06;
     const theme = MUSIC_THEMES[this.musicTheme];
     const phrase = theme.chords[this.musicStep % theme.chords.length];

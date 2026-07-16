@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Keepsake — your photo, your puzzle",
   description: "A private, browser-only jigsaw puzzle made from your own photo.",
   manifest: "/manifest.webmanifest",
+  icons: { icon: "/icon.svg", shortcut: "/icon.svg" },
 };
 
 export const viewport: Viewport = {

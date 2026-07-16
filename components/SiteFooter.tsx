@@ -33,7 +33,7 @@ export default function SiteFooter() {
   return (
     <footer>
       <div className="footer-moment">
-        <span>Made for quiet moments.</span>
+        <span>Made for quiet moments. Clap if you loved it.</span>
         <button type="button" className={`clap-button${clapped ? " is-clapped" : ""}`} onClick={clap} disabled={clapped} aria-label={clapped ? `Clapped. ${claps ?? 1} total claps` : "Clap for Keepsake"}>
           <span aria-hidden="true">👏</span> {clapped ? "Clapped" : "Clap"}{claps !== null ? ` · ${claps}` : ""}
         </button>
