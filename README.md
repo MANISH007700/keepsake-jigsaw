@@ -9,6 +9,11 @@
     <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" />
     <img alt="Netlify" src="https://img.shields.io/badge/Netlify-ready-00C7B7?logo=netlify&logoColor=white" />
   </p>
+  <p>
+    <a href="https://keepsake-jigsaw.netlify.app"><strong>Play Keepsake</strong></a>
+    &nbsp;·&nbsp;
+    <a href="https://keepsake-jigsaw.netlify.app/analytics">View live analytics</a>
+  </p>
 </div>
 
 ---
@@ -18,6 +23,20 @@
 Keepsake is a browser-based jigsaw experience built around memories rather than stock puzzle images. Choose a JPEG or PNG, select a challenge, and rebuild the image piece by piece with optional rotation, guided hints, a timer, sound effects, and an emotional soundtrack.
 
 The core privacy promise is simple: **the selected photo is decoded and processed locally in the browser. It is never uploaded to the application server, analytics endpoint, or Netlify Blobs.**
+
+## Screenshots
+
+### A quiet, private starting point
+
+<a href="https://keepsake-jigsaw.netlify.app">
+  <img src="./docs/screenshots/landing.jpg" alt="Keepsake landing page with the private photo picker and featured soundtrack" />
+</a>
+
+### Transparent, aggregate product analytics
+
+<a href="https://keepsake-jigsaw.netlify.app/analytics">
+  <img src="./docs/screenshots/analytics.jpg" alt="Keepsake analytics dashboard showing visits, engagement, claps, puzzle activity, difficulty, and piece-count metrics" />
+</a>
 
 ## Highlights
 
